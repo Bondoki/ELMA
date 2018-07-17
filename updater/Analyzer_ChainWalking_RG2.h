@@ -150,7 +150,10 @@ bool Analyzer_ChainWalking_RG2<IngredientsType>::execute()
 
 
 			}
-			monomerCounter++;
+			
+			// only count the monomers which contribute to RG2
+			if((ingredients.getMolecules()[l].getAttributeTag()==1))
+				monomerCounter++;
 		}
 		/*if(monomerCounter != ingredients.getMolecules().size())
 		{
@@ -183,14 +186,14 @@ bool Analyzer_ChainWalking_RG2<IngredientsType>::execute()
 		for (int k= 0; k < ingredients.getMolecules().size(); k++)
 		{
 			for (int l = 0; l < ingredients.getMolecules().getNumLinks(k); l++)
-                if((ingredients.getMolecules()[k].getAttributeTag()==1) && (ingredients.getMolecules()[l].getAttributeTag()==1))
-			{
+                	{
 				if( k < ingredients.getMolecules().getNeighborIdx(k, l))
-				{
-				double BondLength = (ingredients.getMolecules()[k]-(ingredients.getMolecules()[ingredients.getMolecules().getNeighborIdx(k, l)])).getLength();
-				sumBondLength2 += BondLength*BondLength;
-				nValuesBondLength2++;
-				}
+					if((ingredients.getMolecules()[k].getAttributeTag()==1) && (ingredients.getMolecules()[ingredients.getMolecules().getNeighborIdx(k, l)].getAttributeTag()==1))
+					{
+					double BondLength = (ingredients.getMolecules()[k]-(ingredients.getMolecules()[ingredients.getMolecules().getNeighborIdx(k, l)])).getLength();
+					sumBondLength2 += BondLength*BondLength;
+					nValuesBondLength2++;
+					}
 			}
 		}
 	}
