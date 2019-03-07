@@ -132,6 +132,7 @@ public:
 		dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_iteration" + itr.str() +  "_final_histogram.dat"));
 		dumpTotalHistogram(std::string(ingredients.getName() + prefixWindow + "_iteration" + itr.str() +  "_final_totalhistogram.dat"));
 		dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_iteration" + itr.str() +  "_final_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
+		dumpHGLnDOSUnrestricted(std::string(ingredients.getName() + prefixWindow + "_iteration" + itr.str() +  "_final_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
 		dumpConvergenceProgress();
 		//updateModificationFactor();
 	};
@@ -172,6 +173,8 @@ private:
 
 	//! write the currently logarithm of Density of States DOS i.e. file named HGLnDOS.dat
 	void dumpHGLnDOS(std::string prefix="", double min= std::numeric_limits<double>::min(), double max= std::numeric_limits<double>::max());
+
+	void dumpHGLnDOSUnrestricted(std::string prefix="", double min= std::numeric_limits<double>::min(), double max= std::numeric_limits<double>::max());
 
 	//! check if the histogram has converged according to chosen criteria
 	bool histogramConverged();
@@ -346,6 +349,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 
 					 dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_tmp_histogram.dat"));
 					 dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_tmp_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
+					 dumpHGLnDOSUnrestricted(std::string(ingredients.getName() + prefixWindow + "_tmp_HGLnDOSUnrestricted.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
 					 std::cout << "dump HGLnDOS " << ingredients.getMinWin() << "   " << ingredients.getMaxWin() << std::endl;
 				}
 			if(histogramConverged()==true){
@@ -375,6 +379,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 					filenametmp<<ingredients.getName() << prefixWindow << "_iteration" << std::setw(2) << std::setfill('0') << iteration << "_HGLnDOS" << "_mcs"<<ingredients.getMolecules().getAge() << ".dat";
 
 					dumpHGLnDOS(filenametmp.str(), ingredients.getMinWin(), ingredients.getMaxWin());
+					dumpHGLnDOSUnrestricted(filenametmp.str(), ingredients.getMinWin(), ingredients.getMaxWin());
 
 					//dumpHGLnDOS(std::string(ingredients.getName()));
 				}
@@ -425,8 +430,8 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 
 			// delete all histograms
 
-			ingredients.modifyVisitsEnergyStates().reset(ingredients.getVisitsEnergyStates().getMinCoordinate(),ingredients.getVisitsEnergyStates().getMaxCoordinate(),ingredients.getVisitsEnergyStates().getNBins());
-			ingredients.modifyTotalVisitsEnergyStates().reset(ingredients.getTotalVisitsEnergyStates().getMinCoordinate(),ingredients.getTotalVisitsEnergyStates().getMaxCoordinate(),ingredients.getTotalVisitsEnergyStates().getNBins());
+			//ingredients.modifyVisitsEnergyStates().reset(ingredients.getVisitsEnergyStates().getMinCoordinate(),ingredients.getVisitsEnergyStates().getMaxCoordinate(),ingredients.getVisitsEnergyStates().getNBins());
+			//ingredients.modifyTotalVisitsEnergyStates().reset(ingredients.getTotalVisitsEnergyStates().getMinCoordinate(),ingredients.getTotalVisitsEnergyStates().getMaxCoordinate(),ingredients.getTotalVisitsEnergyStates().getNBins());
 			//ingredients.modifyHGLnDOS().reset(ingredients.getHGLnDOS().getMinCoordinate(),ingredients.getHGLnDOS().getMaxCoordinate(),ingredients.getHGLnDOS().getNBins());
 
 		}
@@ -456,6 +461,33 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 		
 	}
 	
+	//perform unbiased unrestricted walk
+
+	if(ingredients.isEnergyInWindow() == true )
+	{
+
+		ingredients.setUnrestrictedSampling(true);
+
+		//simulation loop
+		for(int n=0;n<nsteps;n++){
+			//std::cout << "1MCS";
+			//do one monte carlo sweep
+			for(int m=0;m<ingredients.getMolecules().size();m++)
+			{
+				move.init(ingredients);
+
+				if(move.check(ingredients)==true)
+				{
+					move.apply(ingredients);
+				}
+				else
+				{
+					ingredients.rejectMove(ingredients);
+				}
+			}
+		}
+	}
+
 	//update age of system and give some more output on simulation progress
 	ingredients.modifyMolecules().setAge(ingredients.modifyMolecules().getAge()+nsteps);
 	std::cout<<"mcs "<<ingredients.getMolecules().getAge() << " with " << (((1.0*nsteps)*ingredients.getMolecules().size())/(std::difftime(std::time(NULL), startTimer)) ) << " [attempted moves/s]" <<std::endl;
@@ -485,6 +517,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::in
 	dumpHistogram(std::string(ingredients.getName() + prefixWindow +  "_initial_histogram.dat"));
 	dumpTotalHistogram(std::string(ingredients.getName() + prefixWindow +  "_initial_totalhistogram.dat"));
 	dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_initial"));
+	dumpHGLnDOSUnrestricted(std::string(ingredients.getName() + prefixWindow + "_HGLnDOSUnrestricted_initial"));
 }
 
 
@@ -865,8 +898,37 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 	file << "# " << std::endl;
 
 	for(size_t n=0;n<currentHGLnDOS.size();n++){
+		//if( (ingredients.getHGLnDOS().getCenterOfBin(n) >= _min) && (ingredients.getHGLnDOS().getCenterOfBin(n) <= _max) )
+			//if(currentHGLnDOS[n].ReturnN() != 0)
+				if(ingredients.getVisitsEnergyStates().getVectorValues()[n] != 0)
+				file << std::setprecision(15) << bins[n] << "\t" << std::setprecision(15) <<currentHGLnDOS[n].ReturnM1()<<"\n";
+	}
+	file.close();
+
+}
+
+//write current bias potential to file
+template<class IngredientsType,class MoveType>
+void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::dumpHGLnDOSUnrestricted(std::string prefix, double _min, double _max)
+{
+	std::stringstream filename;
+	filename<< prefix;// << "_HGLnDOS" << "_mcs"<<ingredients.getMolecules().getAge()<<".dat";
+	std::ofstream file(filename.str().c_str());
+
+	std::vector<StatisticMoment> currentHGLnDOS=ingredients.getHGLnDOSUnrestricted().getVectorValues();
+	std::vector<double> bins=ingredients.getHGLnDOSUnrestricted().getVectorBins();
+
+	file << "# " << ingredients.getName() << std::endl;
+	file << "# MCS: " << std::setprecision(15) << ingredients.getMolecules().getAge() << std::endl;
+	file << "# f0: " << std::setprecision(15) << initialModificationFactor << std::endl;
+	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor() << std::endl;
+	file << "# Iteration" << iteration << std::endl;
+	file << "# histogram: [" << ingredients.getHGLnDOSUnrestricted().getMinCoordinate() << " ; " << ingredients.getHGLnDOSUnrestricted().getMaxCoordinate() << " ; " << ingredients.getHGLnDOSUnrestricted().getNBins() << " ]" << std::endl;
+	file << "# " << std::endl;
+
+	for(size_t n=0;n<currentHGLnDOS.size();n++){
 		//if( (ingredients.getHGLnDOS().getCenterOfBin(n) >= ingredients.getMinWin()) && (ingredients.getHGLnDOS().getCenterOfBin(n) <= ingredients.getMaxWin()) )
-		if( (ingredients.getHGLnDOS().getCenterOfBin(n) >= _min) && (ingredients.getHGLnDOS().getCenterOfBin(n) <= _max) )
+		//if( (ingredients.getHGLnDOSUnrestricted().getCenterOfBin(n) >= _min) && (ingredients.getHGLnDOS().getCenterOfBin(n) <= _max) )
 			if(currentHGLnDOS[n].ReturnN() != 0)
 				file << std::setprecision(15) << bins[n] << "\t" << std::setprecision(15) <<currentHGLnDOS[n].ReturnM1()<<"\n";
 	}

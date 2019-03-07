@@ -187,6 +187,7 @@ int main(int argc, char* argv[])
 	if(HGLnDOSfile.empty())
 	{
 		myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+		myIngredients.modifyHGLnDOSUnrestricted().reset(min_histogram, max_histogram, bins_histogram);
 		throw std::runtime_error("File HGLnDOS has to be provided. EXITing...\n");
 	}
 	else
@@ -197,11 +198,16 @@ int main(int argc, char* argv[])
 
 		//copy HGLnDOS into ingredients
 		myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+		myIngredients.modifyHGLnDOSUnrestricted().reset(min_histogram, max_histogram, bins_histogram);
+
 
 		for(size_t n=0;n<in.getHGLnDOS().getVectorValues().size();n++){
 
 			if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+			{
 				myIngredients.modifyHGLnDOS().addValue(in.getHGLnDOS().getCenterOfBin(n), in.getHGLnDOS().getVectorValues()[n].ReturnM1());
+				myIngredients.modifyHGLnDOSUnrestricted().addValue(in.getHGLnDOS().getCenterOfBin(n), in.getHGLnDOS().getVectorValues()[n].ReturnM1());
+			}
 		}
 	}
 

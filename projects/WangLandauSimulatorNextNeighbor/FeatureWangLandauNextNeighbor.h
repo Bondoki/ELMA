@@ -111,6 +111,9 @@ public:
 	Histogram1D& modifyTotalVisitsEnergyStates() {return HG_TotalVisitsEnergyStates;}
 	const Histogram1D& getTotalVisitsEnergyStates() const {return HG_TotalVisitsEnergyStates;}
 
+	HistogramGeneralStatistik1D& modifyHGLnDOSUnrestricted() {return HG_LnDOS_Unrestricted;}
+	const HistogramGeneralStatistik1D& getHGLnDOSUnrestricted() const {return HG_LnDOS_Unrestricted;}
+
 	double getModificationFactor() const {return modificationFactor;}
 
 	void setModificationFactor(double modificationFactor) {
@@ -148,6 +151,11 @@ public:
 		this->maxWin = maxWin;
 	}
 
+	void setUnrestrictedSampling(bool unsetWindowState) {
+			this->windowingState =  !unsetWindowState;
+
+		}
+
 	  //!export bfm-file read command !nn_interaction
 	    template <class IngredientsType>
 	    void exportRead(FileImport <IngredientsType>& fileReader);
@@ -184,6 +192,7 @@ private:
 
 	Histogram1D HG_TotalVisitsEnergyStates;
 	
+	HistogramGeneralStatistik1D HG_LnDOS_Unrestricted;
 	//Histogram1D HG_VisitsEnergyStates;
 
 
@@ -309,8 +318,10 @@ bool FeatureWangLandauNextNeighbor<LatticeClassType>::checkMove(const Ingredient
 	double p=1.0;
 
 	// p = min(1,g(E_old)/g(E_new))
-	if(HG_LnDOS.getCountAt(Energy) < HG_LnDOS.getCountAt(Energy+diffEnergy))
-		p=std::exp(HG_LnDOS.getCountAt(Energy)-HG_LnDOS.getCountAt(Energy+diffEnergy));
+	// if(HG_LnDOS.getCountAt(Energy) < HG_LnDOS.getCountAt(Energy+diffEnergy))
+	//		p=std::exp(HG_LnDOS.getCountAt(Energy)-HG_LnDOS.getCountAt(Energy+diffEnergy));
+	if(HG_LnDOS_Unrestricted.getCountAt(Energy) < HG_LnDOS_Unrestricted.getCountAt(Energy+diffEnergy))
+			p=std::exp(HG_LnDOS_Unrestricted.getCountAt(Energy)-HG_LnDOS_Unrestricted.getCountAt(Energy+diffEnergy));
 
 	//add move probability according to current potentialOfMeanForce
 	move.multiplyProbability(p);
@@ -365,25 +376,25 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::applyMove(IngredientsType&
 	//EnergyOld=EnergyNew;
 	Energy += diffEnergy;
 
-	HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
-	HG_VisitsEnergyStates.addValue(Energy, 1.0);
-	HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
+	//HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+	//HG_VisitsEnergyStates.addValue(Energy, 1.0);
+	//HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 
-	/*if(windowingState == false)
+	if(windowingState == false)
 	{
-		HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
-		HG_VisitsEnergyStates.addValue(Energy, 1.0);
-		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
+		HG_LnDOS_Unrestricted.resetValue(Energy, HG_LnDOS_Unrestricted.getCountAt(Energy)+std::log(modificationFactor));
+		//HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+		//HG_VisitsEnergyStates.addValue(Energy, 1.0);
+		//HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 	}
 	else
 	{
-		if(  (Energy > minWin) && (Energy < maxWin) )
-		{
+
 			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
 			HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
-		}
-	}*/
+
+	}
 
 	/*if(	HG_LnDOS.getNumCountAt(Energy) != 0)
 	{
@@ -457,27 +468,27 @@ template<template<typename> class LatticeClassType>
 template<class IngredientsType>
 void FeatureWangLandauNextNeighbor<LatticeClassType>::rejectMove(IngredientsType& ingredients)//, const MoveLocalSc& move)
 {
-	HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
-	HG_VisitsEnergyStates.addValue(Energy, 1.0);
-	HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
+	//HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+	//HG_VisitsEnergyStates.addValue(Energy, 1.0);
+	//HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 
-	/*if(	HG_LnDOS.getNumCountAt(Energy) != 0)
-	{
+
 		if(windowingState == false)
 		{
-			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
-			HG_VisitsEnergyStates.addValue(Energy, 1.0);
-			HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
+			HG_LnDOS_Unrestricted.resetValue(Energy, HG_LnDOS_Unrestricted.getCountAt(Energy)+std::log(modificationFactor));
+			//HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+			//HG_VisitsEnergyStates.addValue(Energy, 1.0);
+			//HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 		}
 		else
 		{
-			if(  (Energy > minWin-4.0*HG_LnDOS.getBinwidth()) && (Energy < maxWin+4.0*HG_LnDOS.getBinwidth()) )
-			{
-				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
-				HG_VisitsEnergyStates.addValue(Energy, 1.0);
-				HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
-			}
+
+			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+			HG_VisitsEnergyStates.addValue(Energy, 1.0);
+			HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
+
 		}
+	/*
 		//if(lnDOSmin < HG_LnDOS.getCountAt(Energy))
 		//	lnDOSmin = HG_LnDOS.getCountAt(Energy);
 	}
