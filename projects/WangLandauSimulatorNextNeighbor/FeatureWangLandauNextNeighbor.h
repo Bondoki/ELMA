@@ -306,8 +306,11 @@ bool FeatureWangLandauNextNeighbor<LatticeClassType>::checkMove(const Ingredient
 	//double prob=calculateAcceptanceProbability(ingredients,move);
 	//std::cout << "from probability dEnergy: " << (-std::log(prob)) << std::endl;
 
+	double p=1.0;
 
-	double p=std::exp(HG_LnDOS.getCountAt(Energy)-HG_LnDOS.getCountAt(Energy+diffEnergy));
+	// p = min(1,g(E_old)/g(E_new))
+	if(HG_LnDOS.getCountAt(Energy) < HG_LnDOS.getCountAt(Energy+diffEnergy))
+		p=std::exp(HG_LnDOS.getCountAt(Energy)-HG_LnDOS.getCountAt(Energy+diffEnergy));
 
 	//add move probability according to current potentialOfMeanForce
 	move.multiplyProbability(p);
@@ -316,15 +319,31 @@ bool FeatureWangLandauNextNeighbor<LatticeClassType>::checkMove(const Ingredient
 	{
 		diffEnergy = calculateInteractionDifference(ingredients,move);
 
-		if( (((Energy+diffEnergy) > minWin-2.0*HG_LnDOS.getBinwidth()) && ((Energy+diffEnergy) < maxWin+2.0*HG_LnDOS.getBinwidth())) && ( (Energy > minWin-2.0*HG_LnDOS.getBinwidth()) && (Energy < maxWin+2.0*HG_LnDOS.getBinwidth()) ))
+		//if( (((Energy+diffEnergy) > minWin-2.0*HG_LnDOS.getBinwidth()) && ((Energy+diffEnergy) < maxWin+2.0*HG_LnDOS.getBinwidth())) && ( (Energy > minWin-2.0*HG_LnDOS.getBinwidth()) && (Energy < maxWin+2.0*HG_LnDOS.getBinwidth()) ))
+		if( ( ((Energy+diffEnergy) > minWin) && ((Energy+diffEnergy) < maxWin)) )
 		{
 			//std::cout << "EnergyOld: " << Energy <<"\t EnergyNew: " << (Energy+diffEnergy)  << " \t dEnergy: " << (diffEnergy) << std::endl;
 
 			//double prob=calculateAcceptanceProbability(ingredients,move);
 			//std::cout << "from probability dEnergy: " << (-std::log(prob)) << std::endl;
 
+			double p=1.0;
 
-			double p=std::exp(HG_LnDOS.getCountAt(Energy)-HG_LnDOS.getCountAt(Energy+diffEnergy));
+			// p = min(1,g(E_old)/g(E_new))
+
+			if(HG_LnDOS.getCountAt(Energy) < HG_LnDOS.getCountAt(Energy+diffEnergy))
+				p=std::exp(HG_LnDOS.getCountAt(Energy)-HG_LnDOS.getCountAt(Energy+diffEnergy));
+
+			/*double m = (HG_LnDOS.getCountAt(maxWin)-HG_LnDOS.getCountAt(minWin))/(maxWin-minWin);
+			double n = HG_LnDOS.getCountAt(minWin)-m*minWin;
+			double bOld = m*Energy+n;
+			double bNew = m*(Energy+diffEnergy)+n;
+
+			//std::cout << "m: " << m <<"\t n: " << (n)  << " \t b: " << (b) << std::endl;
+			if((bOld != 0.0) && (bNew != 0))
+				p=p*(std::exp(bOld)/std::exp(bNew));
+			*/
+
 			move.multiplyProbability(p);
 		}
 		else
@@ -346,7 +365,27 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::applyMove(IngredientsType&
 	//EnergyOld=EnergyNew;
 	Energy += diffEnergy;
 
-	if(	HG_LnDOS.getNumCountAt(Energy) != 0)
+	HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+	HG_VisitsEnergyStates.addValue(Energy, 1.0);
+	HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
+
+	/*if(windowingState == false)
+	{
+		HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+		HG_VisitsEnergyStates.addValue(Energy, 1.0);
+		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
+	}
+	else
+	{
+		if(  (Energy > minWin) && (Energy < maxWin) )
+		{
+			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+			HG_VisitsEnergyStates.addValue(Energy, 1.0);
+			HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
+		}
+	}*/
+
+	/*if(	HG_LnDOS.getNumCountAt(Energy) != 0)
 	{
 		if(windowingState == false)
 		{
@@ -410,6 +449,7 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::applyMove(IngredientsType&
 			}
 		}
 	}
+	*/
 
 }
 
@@ -417,7 +457,11 @@ template<template<typename> class LatticeClassType>
 template<class IngredientsType>
 void FeatureWangLandauNextNeighbor<LatticeClassType>::rejectMove(IngredientsType& ingredients)//, const MoveLocalSc& move)
 {
-	if(	HG_LnDOS.getNumCountAt(Energy) != 0)
+	HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+	HG_VisitsEnergyStates.addValue(Energy, 1.0);
+	HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
+
+	/*if(	HG_LnDOS.getNumCountAt(Energy) != 0)
 	{
 		if(windowingState == false)
 		{
@@ -481,6 +525,7 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::rejectMove(IngredientsType
 			}
 		}
 	}
+	*/
 }
 
 template<template<typename> class LatticeClassType>

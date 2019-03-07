@@ -191,6 +191,8 @@ private:
 	//! set bin width of coordinate histogram and external potential
 	bool setBinWidth();
 	
+	//! shift the histogram be its maximum entry
+	void shiftHGLnDOS();
 	
 	//! System information
 	//IngredientsType& ingredients;
@@ -340,6 +342,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 			counter_nStepsBeforeBiasCheck=0;
 			if(writeHistogramProgress==true)
 				{
+					shiftHGLnDOS();
 
 					 dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_tmp_histogram.dat"));
 					 dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_tmp_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
@@ -408,7 +411,8 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 		}
 		//std::cout << " done" << std::endl;
 		
-		if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) < maxWindow+2*ingredients.getHGLnDOS().getBinwidth()) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) > minWindow-2*ingredients.getHGLnDOS().getBinwidth()) )
+		//if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) < maxWindow+2*ingredients.getHGLnDOS().getBinwidth()) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) > minWindow-2*ingredients.getHGLnDOS().getBinwidth()) )
+		if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) < maxWindow) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) > minWindow) )
 		{
 			std::cout << "RW is in energy window: [" << minWindow << " ; " << maxWindow << "] with " <<  ingredients.getInternalEnergyCurrentConfiguration(ingredients) << std::endl;
 			// RW is in energy window
@@ -423,7 +427,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 
 			ingredients.modifyVisitsEnergyStates().reset(ingredients.getVisitsEnergyStates().getMinCoordinate(),ingredients.getVisitsEnergyStates().getMaxCoordinate(),ingredients.getVisitsEnergyStates().getNBins());
 			ingredients.modifyTotalVisitsEnergyStates().reset(ingredients.getTotalVisitsEnergyStates().getMinCoordinate(),ingredients.getTotalVisitsEnergyStates().getMaxCoordinate(),ingredients.getTotalVisitsEnergyStates().getNBins());
-			ingredients.modifyHGLnDOS().reset(ingredients.getHGLnDOS().getMinCoordinate(),ingredients.getHGLnDOS().getMaxCoordinate(),ingredients.getHGLnDOS().getNBins());
+			//ingredients.modifyHGLnDOS().reset(ingredients.getHGLnDOS().getMinCoordinate(),ingredients.getHGLnDOS().getMaxCoordinate(),ingredients.getHGLnDOS().getNBins());
 
 		}
 
@@ -492,6 +496,35 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::re
 	double max = ingredients.getVisitsEnergyStates().getMaxCoordinate();
 	//histogram.reset(-10000,0.4,nbins);
 	ingredients.modifyVisitsEnergyStates().reset(min,max,nbins);
+}
+
+template<class IngredientsType, class MoveType>
+void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::shiftHGLnDOS()
+{
+	std::cout << "Shift HgLnDOS ";
+
+	double eln = ingredients.getHGLnDOS().getFirstMomentInBin(0);
+	size_t bin = 0;
+			for (size_t n=1; n < ingredients.getHGLnDOS().getNBins(); n++) {
+				if ((ingredients.getHGLnDOS().getFirstMomentInBin(n) < eln && ingredients.getHGLnDOS().getFirstMomentInBin(n) != 0 ) || eln == 0)
+				{
+					eln = ingredients.getHGLnDOS().getFirstMomentInBin(n);
+					bin = n;
+				}
+			}
+
+	std::cout << " by " << eln << " (" << ingredients.getHGLnDOS().getFirstMomentInBin(bin) << ") at bin " << bin << " with energy "  << ingredients.getHGLnDOS().getCenterOfBin(bin) << std::endl;
+
+	for (size_t n=0; n < ingredients.getHGLnDOS().getNBins(); n++)
+	{
+		if(ingredients.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+		{
+			double centerEnergy = ingredients.getHGLnDOS().getCenterOfBin(n);
+			ingredients.modifyHGLnDOS().resetValue(centerEnergy, ingredients.getHGLnDOS().getCountAt(centerEnergy)-eln);
+		}
+
+	}
+
 }
 
 

@@ -18,7 +18,7 @@
 
 #include "FeatureWangLandauNextNeighbor.h"
 #include "UpdaterAdaptiveWangLandauSamplingNextNeighbor.h"
-
+#include "ReadInHGLnDOS.h"
 
 
 int main(int argc, char* argv[])
@@ -26,6 +26,8 @@ int main(int argc, char* argv[])
 	try{
 		std::string infile  = "input.bfm";
 		std::string outfile = "outfile.bfm";
+		std::string HGLnDOSfile = "";
+
 		uint64_t max_mcs=100;
 		uint32_t save_interval=100;
 		uint32_t bias_update_interval=100;
@@ -38,6 +40,8 @@ int main(int argc, char* argv[])
 		double maxWin = +100.0;
 
 		bool showHelp = false;
+
+		bool filedump = false;
 
 		auto parser
 		= clara::Opt( infile, "input (=input.bfm)" )
@@ -117,6 +121,14 @@ int main(int argc, char* argv[])
 			["--max-win"]
 			("maximal window boundary (=+100.0)")
 			.required()
+		| clara::Opt( HGLnDOSfile, "HGLnDOS" )
+			["--HGLnDOS"]
+			("Histogram file for (logarithmic) DOS to load.")
+			.required()
+		| clara::Opt( filedump, "filedump" )
+						["--dump"]
+						("boolean: dump file every save_interval.")
+						.required()
 		| clara::Help( showHelp );
 
 		auto result = parser.parse( clara::Args( argc, argv ) );
@@ -148,6 +160,8 @@ int main(int argc, char* argv[])
 					<< "modFactor: " << modFactor << std::endl
 					<< "min_win: "	<< minWin << std::endl
 					<< "max_win: " 	<< maxWin << std::endl
+					<< "HGLnDOS:" << HGLnDOSfile << std::endl
+					<< "filedump:" << filedump << std::endl
 					;
 		}
 	
@@ -167,7 +181,31 @@ int main(int argc, char* argv[])
 
 	myIngredients.modifyVisitsEnergyStates().reset(min_histogram, max_histogram, bins_histogram);//-128*6*4,1,4*6*4*4*8*2*256);
 	myIngredients.modifyTotalVisitsEnergyStates().reset(min_histogram, max_histogram, bins_histogram);
-	myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+	//myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+
+	//read-in the histogram of the DOS
+	if(HGLnDOSfile.empty())
+	{
+		myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+		throw std::runtime_error("File HGLnDOS has to be provided. EXITing...\n");
+	}
+	else
+	{
+		std::cout << "ReadIn of HGLnDOS:        " << HGLnDOSfile << std::endl;
+		ReadInHGLnDOS in(min_histogram, max_histogram, bins_histogram, HGLnDOSfile);
+		in.readin();
+
+		//copy HGLnDOS into ingredients
+		myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+
+		for(size_t n=0;n<in.getHGLnDOS().getVectorValues().size();n++){
+
+			if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+				myIngredients.modifyHGLnDOS().addValue(in.getHGLnDOS().getCenterOfBin(n), in.getHGLnDOS().getVectorValues()[n].ReturnM1());
+		}
+	}
+
+	// run the simulation and gather the information
 
 
 	TaskManager taskmanager;
@@ -180,7 +218,9 @@ int main(int argc, char* argv[])
 												    save_interval,
 										      bias_update_interval, modFactor, max_mcs, minWin, maxWin),
 					       1);
-	//taskmanager.addAnalyzer(new AnalyzerWriteBfmFile<Ing>(outfile,myIngredients));
+
+	if(filedump)
+		taskmanager.addAnalyzer(new AnalyzerWriteBfmFile<Ing>(outfile,myIngredients));
 
 
 	taskmanager.initialize();
