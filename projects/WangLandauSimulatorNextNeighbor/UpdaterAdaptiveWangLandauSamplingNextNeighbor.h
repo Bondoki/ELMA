@@ -132,7 +132,7 @@ public:
 		dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_iteration" + itr.str() +  "_final_histogram.dat"));
 		dumpTotalHistogram(std::string(ingredients.getName() + prefixWindow + "_iteration" + itr.str() +  "_final_totalhistogram.dat"));
 		dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_iteration" + itr.str() +  "_final_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
-		dumpHGLnDOSUnrestricted(std::string(ingredients.getName() + prefixWindow + "_iteration" + itr.str() +  "_final_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
+		dumpHGLnDOSUnrestricted(std::string(ingredients.getName() + prefixWindow + "_iteration" + itr.str() +  "_final_HGLnDOSUnrestricted.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
 		dumpConvergenceProgress();
 		//updateModificationFactor();
 	};
@@ -378,8 +378,11 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 					std::stringstream filenametmp;
 					filenametmp<<ingredients.getName() << prefixWindow << "_iteration" << std::setw(2) << std::setfill('0') << iteration << "_HGLnDOS" << "_mcs"<<ingredients.getMolecules().getAge() << ".dat";
 
+					std::stringstream filenametmpUnrestricted;
+					filenametmpUnrestricted<<ingredients.getName() << prefixWindow << "_iteration" << std::setw(2) << std::setfill('0') << iteration << "_HGLnDOSUnrestricted" << "_mcs"<<ingredients.getMolecules().getAge() << ".dat";
+
 					dumpHGLnDOS(filenametmp.str(), ingredients.getMinWin(), ingredients.getMaxWin());
-					dumpHGLnDOSUnrestricted(filenametmp.str(), ingredients.getMinWin(), ingredients.getMaxWin());
+					dumpHGLnDOSUnrestricted(filenametmpUnrestricted.str(), ingredients.getMinWin(), ingredients.getMaxWin());
 
 					//dumpHGLnDOS(std::string(ingredients.getName()));
 				}
@@ -569,8 +572,8 @@ template<class IngredientsType, class MoveType>
 bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::histogramConverged()
 {
 	// only check for flat histogram if RW is in desired energy space
-	if(ingredients.isEnergyInWindow() == false)
-		return false;
+	//if(ingredients.isEnergyInWindow() == false)
+	//	return false;
 
 	std::cout<<"Check histogram flatness" << std::endl;
 
@@ -842,7 +845,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 
 
 	for(size_t n=0;n<currentHistogram.size();n++){
-		if( (ingredients.getVisitsEnergyStates().getCenterOfBin(n) >= ingredients.getMinWin()) && (ingredients.getVisitsEnergyStates().getCenterOfBin(n) <= ingredients.getMaxWin()) )
+		//if( (ingredients.getVisitsEnergyStates().getCenterOfBin(n) >= ingredients.getMinWin()) && (ingredients.getVisitsEnergyStates().getCenterOfBin(n) <= ingredients.getMaxWin()) )
 			if(currentHistogram[n] != 0)
 				file<< std::setprecision(15) << bins[n] << "\t" << std::setprecision(15) << currentHistogram[n]<<"\n";
 	}
@@ -898,9 +901,9 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 	file << "# " << std::endl;
 
 	for(size_t n=0;n<currentHGLnDOS.size();n++){
-		//if( (ingredients.getHGLnDOS().getCenterOfBin(n) >= _min) && (ingredients.getHGLnDOS().getCenterOfBin(n) <= _max) )
-			//if(currentHGLnDOS[n].ReturnN() != 0)
-				if(ingredients.getVisitsEnergyStates().getVectorValues()[n] != 0)
+		if( (ingredients.getHGLnDOS().getCenterOfBin(n) >= _min) && (ingredients.getHGLnDOS().getCenterOfBin(n) <= _max) )
+			if(currentHGLnDOS[n].ReturnN() != 0)
+				//if(ingredients.getVisitsEnergyStates().getVectorValues()[n] != 0)
 				file << std::setprecision(15) << bins[n] << "\t" << std::setprecision(15) <<currentHGLnDOS[n].ReturnM1()<<"\n";
 	}
 	file.close();
