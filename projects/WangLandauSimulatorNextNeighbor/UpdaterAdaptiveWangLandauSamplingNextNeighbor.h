@@ -152,6 +152,53 @@ public:
 	//! get the number of pmf updates performed up to now on the bias potential
 	uint32_t getNPerformedUpdates()const{return nUpdatesPerformed;}
 	
+	//! check if the histogram has converged according to chosen criteria
+	bool histogramConverged();
+
+	void doResetForNextIteration()
+	{
+		updateModificationFactor();
+		iteration++;
+		std::cout << "Start Iteration" << iteration << std::endl;
+
+		iterationconverged = false;
+		//if the simulation has converged, end the simulation
+		//if(simulationConverged==true) return false;
+
+		//set histogram to 0
+		resetHistogram();
+	}
+
+	void outputConvergedIteration()
+	{
+
+		//write some file output
+		dumpConvergenceProgress();
+		if(writeHistogramProgress==true){
+			std::stringstream filename;
+			filename<<ingredients.getName() << prefixWindow  << "_iteration" << std::setw(2) << std::setfill('0') << iteration << "_histogram_mcs"
+					<<ingredients.getMolecules().getAge()
+					<<".dat";
+			dumpHistogram(filename.str());
+
+			std::stringstream filenameTotal;
+			filenameTotal<<ingredients.getName() << prefixWindow << "_iteration" << std::setw(2) << std::setfill('0') << iteration << "_totalhistogram_mcs"<<ingredients.getMolecules().getAge()<<".dat";
+			dumpTotalHistogram(filenameTotal.str());
+		}
+
+
+		//write some more output
+		if(writePMFProgress==true)
+		{
+			std::stringstream filenametmp;
+			filenametmp<<ingredients.getName() << prefixWindow << "_iteration" << std::setw(2) << std::setfill('0') << iteration << "_HGLnDOS" << "_mcs"<<ingredients.getMolecules().getAge() << ".dat";
+
+			dumpHGLnDOS(filenametmp.str(), ingredients.getMinWin(), ingredients.getMaxWin());
+
+		}
+
+	}
+
 private:
 	using BaseClass::ingredients;
 
@@ -173,8 +220,6 @@ private:
 	//! write the currently logarithm of Density of States DOS i.e. file named HGLnDOS.dat
 	void dumpHGLnDOS(std::string prefix="", double min= std::numeric_limits<double>::min(), double max= std::numeric_limits<double>::max());
 
-	//! check if the histogram has converged according to chosen criteria
-	bool histogramConverged();
 	
 	//! reset the histogram to empty state
 	void resetHistogram();
@@ -254,6 +299,8 @@ private:
 	int iteration;
 
 	double initialModificationFactor;
+
+	bool iterationconverged;
 };
 
 
@@ -309,6 +356,8 @@ nsteps(steps)
 	flatnessSeries.resize(0);
 	ingredients.setModificationFactor(initialModificationFactor);
 	ingredients.setWindowState(false, ingredients.getVisitsEnergyStates().getMinCoordinate(), ingredients.getVisitsEnergyStates().getMaxCoordinate());
+
+	iterationconverged=false;
 }
  
  
@@ -348,49 +397,8 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 					 dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_tmp_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
 					 std::cout << "dump HGLnDOS " << ingredients.getMinWin() << "   " << ingredients.getMaxWin() << std::endl;
 				}
-			if(histogramConverged()==true){
-				
-				/*double flat=histogramFlattness();
-				if(histogramFlattness()<0.3) convergenceThreshold*=0.5;
-				*/
-				//write some file output
-				dumpConvergenceProgress();
-				if(writeHistogramProgress==true){
-					std::stringstream filename;
-					filename<<ingredients.getName() << prefixWindow  << "_iteration" << std::setw(2) << std::setfill('0') << iteration << "_histogram_mcs"
-						<<ingredients.getMolecules().getAge()
-						<<".dat";
-					dumpHistogram(filename.str());
-
-					std::stringstream filenameTotal;
-					filenameTotal<<ingredients.getName() << prefixWindow << "_iteration" << std::setw(2) << std::setfill('0') << iteration << "_totalhistogram_mcs"<<ingredients.getMolecules().getAge()<<".dat";
-					dumpTotalHistogram(filenameTotal.str());
-				} 
-				
-				
-				//write some more output
-				if(writePMFProgress==true)
-				{
-					std::stringstream filenametmp;
-					filenametmp<<ingredients.getName() << prefixWindow << "_iteration" << std::setw(2) << std::setfill('0') << iteration << "_HGLnDOS" << "_mcs"<<ingredients.getMolecules().getAge() << ".dat";
-
-					dumpHGLnDOS(filenametmp.str(), ingredients.getMinWin(), ingredients.getMaxWin());
-
-					//dumpHGLnDOS(std::string(ingredients.getName()));
-				}
-				
-				updateModificationFactor();
-				iteration++;
-				std::cout << "Start Iteration" << iteration << std::endl;
-
-				//if the simulation has converged, end the simulation
-				if(simulationConverged==true) return false;
-				
-				//set histogram to 0
-				resetHistogram();
-				
-			}
 			
+
 		}
 		
 		
@@ -539,6 +547,9 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 	if(ingredients.isEnergyInWindow() == false)
 		return false;
 
+	if(iterationconverged == true)
+		return true;
+
 	std::cout<<"Check histogram flatness" << std::endl;
 
 	std::vector<double> currentHistogramState=ingredients.getVisitsEnergyStates().getVectorValues();//histogram.getVectorValues();
@@ -575,7 +586,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 			}
 		}
 
-	if(entriesTotal <= 10)
+	/*if(entriesTotal <= 10)
 	{
 		// broaden the window in 5% in every direction
 		double bordershift = (ingredients.getMaxWin()-ingredients.getMinWin())/20.0;
@@ -596,6 +607,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 
 		return false;
 	}
+	*/
 
 	bool isFlat = true;
 
@@ -613,6 +625,9 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 				}
 		}
 	}
+
+	// still here: histogramm converged
+	iterationconverged = true;
 
 	return isFlat;
 

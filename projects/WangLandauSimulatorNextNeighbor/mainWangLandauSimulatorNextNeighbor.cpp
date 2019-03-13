@@ -1,6 +1,10 @@
 
 
+#include <omp.h>
+
 #include <cstring>
+#include <sstream>      // std::stringstream, std::stringbuf
+
 
 #include <LeMonADE/utility/RandomNumberGenerators.h>
 #include <LeMonADE/core/ConfigureSystem.h>
@@ -165,10 +169,8 @@ int main(int argc, char* argv[])
 					;
 		}
 	
-	//seed the globally available random number generators
-	RandomNumberGenerators rng;
-	rng.seedAll();
-	
+	int nthreads, tid;
+
 	// FeatureExcludedVolume<> is equivalent to FeatureExcludedVolume<FeatureLattice<bool> >
 	//typedef LOKI_TYPELIST_4(FeatureMoleculesIO, FeatureFixedMonomers,FeatureAttributes,FeatureExcludedVolumeSc<>) Features;
 	//typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureAttributes, FeatureNNInteractionSc< FeatureLattice >) Features;
@@ -177,62 +179,274 @@ int main(int argc, char* argv[])
 
 	typedef ConfigureSystem<VectorInt3,Features, 6> Config;
 	typedef Ingredients<Config> Ing;
-	Ing myIngredients;
 
-	myIngredients.modifyVisitsEnergyStates().reset(min_histogram, max_histogram, bins_histogram);//-128*6*4,1,4*6*4*4*8*2*256);
-	myIngredients.modifyTotalVisitsEnergyStates().reset(min_histogram, max_histogram, bins_histogram);
-	//myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+	Ingredients<Config>::molecules_type mol[2];
 
-	//read-in the histogram of the DOS
-	if(HGLnDOSfile.empty())
+	double energyState[2];
+	double energyWinStart[2];
+	double energyWinEnd[2];
+	double lnDOSenergyOld[2];
+	double lnDOSenergyNew[2];
+
+	uint32_t rnd_tid;
+	bool acceptExchange[2];
+	//mol[1]= myIngredients.getMolecules();
+
+
+#pragma omp parallel private(nthreads, tid) shared(mol, energyState, energyWinStart, energyWinEnd, lnDOSenergyOld, lnDOSenergyNew, rnd_tid, acceptExchange)
 	{
-		myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
-		throw std::runtime_error("File HGLnDOS has to be provided. EXITing...\n");
-	}
-	else
-	{
-		std::cout << "ReadIn of HGLnDOS:        " << HGLnDOSfile << std::endl;
-		ReadInHGLnDOS in(min_histogram, max_histogram, bins_histogram, HGLnDOSfile);
-		in.readin();
+		/* Obtain thread number */
+		tid = omp_get_thread_num();
 
-		//copy HGLnDOS into ingredients
-		myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+		std::cout << "Hello World from thread = " <<  tid << std::endl;
 
-		for(size_t n=0;n<in.getHGLnDOS().getVectorValues().size();n++){
-
-			if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
-				myIngredients.modifyHGLnDOS().addValue(in.getHGLnDOS().getCenterOfBin(n), in.getHGLnDOS().getVectorValues()[n].ReturnM1());
+		/* Only master thread does this */
+		if (tid == 0)
+		{
+			nthreads = omp_get_num_threads();
+			std::cout << "Number of threads = " << nthreads << std::endl;
 		}
+
+		//seed the globally available random number generators
+		RandomNumberGenerators rng;
+		rng.seedAll();
+
+		Ing myIngredients;
+
+
+		myIngredients.modifyVisitsEnergyStates().reset(min_histogram, max_histogram, bins_histogram);//-128*6*4,1,4*6*4*4*8*2*256);
+		myIngredients.modifyTotalVisitsEnergyStates().reset(min_histogram, max_histogram, bins_histogram);
+		//myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+
+		//read-in the histogram of the DOS
+		if(HGLnDOSfile.empty())
+		{
+			myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+			throw std::runtime_error("File HGLnDOS has to be provided. EXITing...\n");
+		}
+		else
+		{
+			std::cout << "ReadIn of HGLnDOS:        " << HGLnDOSfile << std::endl;
+			ReadInHGLnDOS in(min_histogram, max_histogram, bins_histogram, HGLnDOSfile);
+			in.readin();
+
+			//copy HGLnDOS into ingredients
+			myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+
+			for(size_t n=0;n<in.getHGLnDOS().getVectorValues().size();n++){
+
+				if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+					myIngredients.modifyHGLnDOS().addValue(in.getHGLnDOS().getCenterOfBin(n), in.getHGLnDOS().getVectorValues()[n].ReturnM1());
+			}
+		}
+
+		// run the simulation and gather the information
+		double overlap = 0.33;
+
+		double lengthWindow = (maxWin-minWin)/(omp_get_num_threads()-(omp_get_num_threads()-1)*overlap);
+
+		double minWinThread = lengthWindow*tid*(1.0-overlap)+minWin;
+		double maxWinThread = minWinThread+lengthWindow;
+
+
+		UpdaterReadBfmFile<Ing> UR(infile,myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE);
+		UR.initialize();
+		UR.execute();
+		UR.cleanup();
+
+		UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc> UWL(myIngredients,
+						save_interval,
+						bias_update_interval, modFactor, max_mcs, minWinThread, maxWinThread);
+
+
+
+
+		UWL.initialize();
+
+		std::cout << "Thread " << tid << " with window [ " <<   minWinThread << " ; " << maxWinThread << " ] " << std::endl;
+
+		// run as long to reach desired window
+		do
+		{
+			UWL.execute();
+		} while(!myIngredients.isEnergyInWindow());
+
+#pragma omp barrier
+		// here all threads are sync and in therir desried window
+		// run the simulations
+
+		do
+		{
+			int counter = 1;
+			// run the one iterartion until histogram converged
+			do
+			{
+				// output configuration
+				if(filedump)
+				{
+					std::stringstream ss;
+					ss << infile << "_" << tid << ".bfm";
+
+					AnalyzerWriteBfmFile<Ing> ABFM(ss.str(),myIngredients);
+					ABFM.initialize();
+					ABFM.execute();
+					ABFM.cleanup();
+				}
+
+				UWL.execute();
+
+				//exchange configurations
+				if(counter == 10)
+				{
+				#pragma omp single
+					{
+						rnd_tid=rng.r250_rand32()%(nthreads-1);
+					}
+
+				#pragma omp barrier
+					if (tid == rnd_tid)
+					{
+						mol[0]= myIngredients.getMolecules();
+						energyState[0] =  myIngredients.getInternalEnergyCurrentConfiguration(myIngredients);
+						energyWinStart[0]= myIngredients.getMinWin();
+						energyWinEnd[0]= myIngredients.getMaxWin();
+						lnDOSenergyOld[0] = myIngredients.getHGLnDOS().getCountAt(energyState[0]);
+						//lnDOSenergyNew
+						std::cout << "copy molecules tid " <<  tid << " with energy " << energyState[0] << " and lnDOS " << lnDOSenergyOld[0] << " in win [ " << energyWinStart[0] << " ; " << energyWinEnd[0] << " ] " << std::endl;
+					}
+					if (tid == rnd_tid+1)
+					{
+						mol[1]= myIngredients.getMolecules();
+						energyState[1] =  myIngredients.getInternalEnergyCurrentConfiguration(myIngredients);
+						energyWinStart[1]= myIngredients.getMinWin();
+						energyWinEnd[1]= myIngredients.getMaxWin();
+						lnDOSenergyOld[1] = myIngredients.getHGLnDOS().getCountAt(energyState[1]);
+						std::cout << "copy molecules tid " <<  tid << " with energy " << energyState[1] << " and lnDOS " << lnDOSenergyOld[1] << " in win [ " << energyWinStart[1] << " ; " << energyWinEnd[1] << " ] " << std::endl;
+					}
+				#pragma omp barrier
+					if (tid == rnd_tid)
+					{
+						lnDOSenergyNew[0] = myIngredients.getHGLnDOS().getCountAt(energyState[1]);
+						acceptExchange[0] = false;
+					}
+
+					if (tid == rnd_tid+1)
+					{
+						lnDOSenergyNew[1] = myIngredients.getHGLnDOS().getCountAt(energyState[0]);
+						acceptExchange[1] = false;
+					}
+				#pragma omp barrier
+					if (tid == rnd_tid)
+					{
+						// check boundary windows
+						if((energyState[1] < energyWinEnd[0]) && (energyState[0] > energyWinStart[1]) )
+						{
+							double diffLnDOS = lnDOSenergyOld[0]+lnDOSenergyOld[1]-lnDOSenergyNew[0]-lnDOSenergyNew[1];
+
+							double p = 1.0;
+							if(diffLnDOS < 0.0)
+								p=std::exp(diffLnDOS);
+
+							if(rng.r250_drand() < p)
+								acceptExchange[0] = true;
+						}
+					}
+
+					if (tid == rnd_tid+1)
+					{
+						if((energyState[1] < energyWinEnd[0]) && (energyState[0] > energyWinStart[1]) )
+						{
+							double diffLnDOS = lnDOSenergyOld[0]+lnDOSenergyOld[1]-lnDOSenergyNew[0]-lnDOSenergyNew[1];
+
+							double p = 1.0;
+							if(diffLnDOS < 0.0)
+								p=std::exp(diffLnDOS);
+
+							if(rng.r250_drand() < p)
+								acceptExchange[1] = true;
+						}
+					}
+				#pragma omp barrier
+					if (tid == rnd_tid)
+					{
+						if((acceptExchange[0] == true) && (acceptExchange[1] == true) )
+						{
+							std::cout << "swap molecules tid " <<  tid << std::endl;
+							myIngredients.modifyMolecules() = mol[1];
+							myIngredients.synchronize();
+						}
+					}
+					if (tid == rnd_tid+1)
+					{
+						if( (acceptExchange[0] == true) && (acceptExchange[1] == true) )
+						{
+							std::cout << "swap molecules tid " <<  tid << std::endl;
+							myIngredients.modifyMolecules() = mol[0];
+							myIngredients.synchronize();
+						}
+					}
+
+				#pragma omp barrier
+					counter = 0;
+				}
+
+				#pragma omp barrier
+
+				counter++;
+
+			} while(!UWL.histogramConverged());
+			//iteration coverged
+			UWL.outputConvergedIteration();
+
+			//run as long for each interation
+			#pragma omp barrier
+
+			//reset for new iteration
+			UWL.doResetForNextIteration();
+
+		}while( !(myIngredients.getModificationFactor() < std::exp(std::pow(10,-8)) ) );
+
+		// all iteration converged and f < exp(10-8)
+		#pragma omp barrier
+
+		UWL.cleanup();
+
+
+
+		/*
+		TaskManager taskmanager;
+		taskmanager.addUpdater(new UpdaterReadBfmFile<Ing>(infile,myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE),0);
+		//here you can choose to use MoveLocalBcc instead. Careful though: no real tests made yet
+		//(other than for latticeOccupation, valid bonds, frozen monomers...)
+		//taskmanager.addUpdater(new UpdaterSimpleSimulator<Ing,MoveLocalSc>(myIngredients,save_interval));
+
+		taskmanager.addUpdater(new UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc>(myIngredients,
+				save_interval,
+				bias_update_interval, modFactor, max_mcs, minWinThread, maxWinThread),
+				1);
+
+		if (tid == 0){
+			if(filedump)
+				taskmanager.addAnalyzer(new AnalyzerWriteBfmFile<Ing>(outfile,myIngredients));
+		}
+
+		taskmanager.initialize();
+		taskmanager.run();
+		taskmanager.cleanup();
+
+		*/
+
+		if (tid == 0)
+		{
+			outfile=infile+"_final";
+
+			AnalyzerWriteBfmFile<Ing> ABFM(outfile,myIngredients);
+			ABFM.initialize();
+			ABFM.execute();
+			ABFM.cleanup();
+		}
+
 	}
-
-	// run the simulation and gather the information
-
-
-	TaskManager taskmanager;
-	taskmanager.addUpdater(new UpdaterReadBfmFile<Ing>(infile,myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE),0);
-	//here you can choose to use MoveLocalBcc instead. Careful though: no real tests made yet
-	//(other than for latticeOccupation, valid bonds, frozen monomers...)
-	//taskmanager.addUpdater(new UpdaterSimpleSimulator<Ing,MoveLocalSc>(myIngredients,save_interval));
-	
-	taskmanager.addUpdater(new UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc>(myIngredients,
-												    save_interval,
-										      bias_update_interval, modFactor, max_mcs, minWin, maxWin),
-					       1);
-
-	if(filedump)
-		taskmanager.addAnalyzer(new AnalyzerWriteBfmFile<Ing>(outfile,myIngredients));
-
-
-	taskmanager.initialize();
-	taskmanager.run();
-	taskmanager.cleanup();
-	
-	outfile=infile+"_final";
-
-	AnalyzerWriteBfmFile<Ing> ABFM(outfile,myIngredients);
-	ABFM.initialize();
-	ABFM.execute();
-	ABFM.cleanup();
 
 	}
 	catch(std::exception& err){std::cerr<<err.what();}

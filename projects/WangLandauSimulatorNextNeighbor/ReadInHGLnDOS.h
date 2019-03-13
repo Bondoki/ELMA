@@ -96,7 +96,7 @@ public:
 							throw std::runtime_error("Error in LnDOS in HGLnDOS file");
 						}
 
-						std::cout << energy << " -> " << lnDOS << std::endl;
+						//std::cout << energy << " -> " << lnDOS << std::endl;
 						HG_LnDOS.addValue(energy, lnDOS);
 					}
 				}
