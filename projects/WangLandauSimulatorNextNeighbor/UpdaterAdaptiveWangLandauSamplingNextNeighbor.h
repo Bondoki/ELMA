@@ -162,6 +162,7 @@ public:
 		std::cout << "Start Iteration" << iteration << std::endl;
 
 		iterationconverged = false;
+		iterationfirstconverged = false;
 		//if the simulation has converged, end the simulation
 		//if(simulationConverged==true) return false;
 
@@ -198,6 +199,12 @@ public:
 		}
 
 	}
+
+	bool isIterationConverged() {return iterationconverged;};
+
+	bool isFirstConverged() {return iterationfirstconverged;};
+
+	void unsetFirstConverged() {iterationfirstconverged=false;};
 
 private:
 	using BaseClass::ingredients;
@@ -301,6 +308,8 @@ private:
 	double initialModificationFactor;
 
 	bool iterationconverged;
+
+	bool iterationfirstconverged;
 };
 
 
@@ -358,6 +367,7 @@ nsteps(steps)
 	ingredients.setWindowState(false, ingredients.getVisitsEnergyStates().getMinCoordinate(), ingredients.getVisitsEnergyStates().getMaxCoordinate());
 
 	iterationconverged=false;
+	iterationfirstconverged = false;
 }
  
  
@@ -628,6 +638,8 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 
 	// still here: histogramm converged
 	iterationconverged = true;
+
+	iterationfirstconverged = true;
 
 	return isFlat;
 

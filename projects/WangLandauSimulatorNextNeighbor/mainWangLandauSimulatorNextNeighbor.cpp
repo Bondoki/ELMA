@@ -192,8 +192,10 @@ int main(int argc, char* argv[])
 	bool acceptExchange[2];
 	//mol[1]= myIngredients.getMolecules();
 
+	int counterCovergedIteration = 0;
 
-#pragma omp parallel private(nthreads, tid) shared(mol, energyState, energyWinStart, energyWinEnd, lnDOSenergyOld, lnDOSenergyNew, rnd_tid, acceptExchange)
+
+#pragma omp parallel private(nthreads, tid) shared(mol, energyState, energyWinStart, energyWinEnd, lnDOSenergyOld, lnDOSenergyNew, rnd_tid, acceptExchange, counterCovergedIteration)
 	{
 		/* Obtain thread number */
 		tid = omp_get_thread_num();
@@ -241,7 +243,7 @@ int main(int argc, char* argv[])
 		}
 
 		// run the simulation and gather the information
-		double overlap = 0.33;
+		double overlap = 0.75;
 
 		double lengthWindow = (maxWin-minWin)/(omp_get_num_threads()-(omp_get_num_threads()-1)*overlap);
 
@@ -277,12 +279,14 @@ int main(int argc, char* argv[])
 
 		do
 		{
-			int counter = 1;
+#pragma omp barrier
 			// run the one iterartion until histogram converged
+
 			do
 			{
+#pragma omp barrier
 				// output configuration
-				if(filedump)
+				/*if(filedump)
 				{
 					std::stringstream ss;
 					ss << infile << "_" << tid << ".bfm";
@@ -291,16 +295,19 @@ int main(int argc, char* argv[])
 					ABFM.initialize();
 					ABFM.execute();
 					ABFM.cleanup();
-				}
+				}*/
 
+				//for(int count = 0; count < 1; count++)
 				UWL.execute();
 
+				#pragma omp barrier
 				//exchange configurations
-				if(counter == 10)
-				{
+
+
 				#pragma omp single
 					{
 						rnd_tid=rng.r250_rand32()%(nthreads-1);
+				#pragma  omp flush(rnd_tid)
 					}
 
 				#pragma omp barrier
@@ -313,6 +320,7 @@ int main(int argc, char* argv[])
 						lnDOSenergyOld[0] = myIngredients.getHGLnDOS().getCountAt(energyState[0]);
 						//lnDOSenergyNew
 						std::cout << "copy molecules tid " <<  tid << " with energy " << energyState[0] << " and lnDOS " << lnDOSenergyOld[0] << " in win [ " << energyWinStart[0] << " ; " << energyWinEnd[0] << " ] " << std::endl;
+					#pragma  omp flush
 					}
 					if (tid == rnd_tid+1)
 					{
@@ -322,18 +330,21 @@ int main(int argc, char* argv[])
 						energyWinEnd[1]= myIngredients.getMaxWin();
 						lnDOSenergyOld[1] = myIngredients.getHGLnDOS().getCountAt(energyState[1]);
 						std::cout << "copy molecules tid " <<  tid << " with energy " << energyState[1] << " and lnDOS " << lnDOSenergyOld[1] << " in win [ " << energyWinStart[1] << " ; " << energyWinEnd[1] << " ] " << std::endl;
+					#pragma  omp flush
 					}
 				#pragma omp barrier
 					if (tid == rnd_tid)
 					{
 						lnDOSenergyNew[0] = myIngredients.getHGLnDOS().getCountAt(energyState[1]);
 						acceptExchange[0] = false;
+					#pragma  omp flush
 					}
 
 					if (tid == rnd_tid+1)
 					{
 						lnDOSenergyNew[1] = myIngredients.getHGLnDOS().getCountAt(energyState[0]);
 						acceptExchange[1] = false;
+					#pragma  omp flush
 					}
 				#pragma omp barrier
 					if (tid == rnd_tid)
@@ -349,6 +360,8 @@ int main(int argc, char* argv[])
 
 							if(rng.r250_drand() < p)
 								acceptExchange[0] = true;
+						
+						#pragma  omp flush
 						}
 					}
 
@@ -364,6 +377,8 @@ int main(int argc, char* argv[])
 
 							if(rng.r250_drand() < p)
 								acceptExchange[1] = true;
+						
+						#pragma  omp flush
 						}
 					}
 				#pragma omp barrier
@@ -371,35 +386,64 @@ int main(int argc, char* argv[])
 					{
 						if((acceptExchange[0] == true) && (acceptExchange[1] == true) )
 						{
-							std::cout << "swap molecules tid " <<  tid << std::endl;
+							std::cout  << std::endl << std::endl << std::endl << "swap molecules tid " <<  tid << std::endl << std::endl << std::endl;
 							myIngredients.modifyMolecules() = mol[1];
 							myIngredients.synchronize();
+						#pragma  omp flush
 						}
 					}
 					if (tid == rnd_tid+1)
 					{
 						if( (acceptExchange[0] == true) && (acceptExchange[1] == true) )
 						{
-							std::cout << "swap molecules tid " <<  tid << std::endl;
+							std::cout << std::endl << std::endl << "swap molecules tid " <<  tid << std::endl << std::endl << std::endl;
 							myIngredients.modifyMolecules() = mol[0];
 							myIngredients.synchronize();
+						#pragma  omp flush
 						}
 					}
 
 				#pragma omp barrier
-					counter = 0;
-				}
+
+
 
 				#pragma omp barrier
 
-				counter++;
+				//UWL.histogramConverged();
+				//counter++;
+				if(UWL.histogramConverged() && UWL.isFirstConverged())
+				{
+					UWL.outputConvergedIteration();
 
-			} while(!UWL.histogramConverged());
+					UWL.unsetFirstConverged();
+
+				#pragma omp atomic
+					counterCovergedIteration = counterCovergedIteration+1;
+				}
+				#pragma  omp flush(counterCovergedIteration)
+				#pragma  omp flush
+
+				std::cout << std::endl << std::endl << "tid" <<  tid << " counterCovergedIteration -> " << counterCovergedIteration  << " / " << omp_get_num_threads() <<  std::endl << std::endl << std::endl;
+
+				#pragma omp barrier
+
+			} while(counterCovergedIteration != omp_get_num_threads());//!UWL.histogramConverged());
 			//iteration coverged
-			UWL.outputConvergedIteration();
+			#pragma omp barrier
+
+			#pragma omp single
+					{
+						counterCovergedIteration=0;
+			#pragma  omp flush(counterCovergedIteration)
+					}
+			#pragma omp barrier
+			#pragma  omp flush
+
 
 			//run as long for each interation
 			#pragma omp barrier
+			//std::cout << std::endl << std::endl << "tid" <<  tid << " NextIterStart: counterCovergedIteration -> " << counterCovergedIteration  << " / " << omp_get_num_threads() <<  std::endl << std::endl << std::endl;
+
 
 			//reset for new iteration
 			UWL.doResetForNextIteration();
