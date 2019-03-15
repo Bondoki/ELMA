@@ -47,6 +47,10 @@ int main(int argc, char* argv[])
 
 		bool filedump = false;
 
+		double overlap = 0.75;
+
+		double lengthIncrease = 0.25;
+
 		auto parser
 		= clara::Opt( infile, "input (=input.bfm)" )
 		["-i"]["--infile"]
@@ -99,8 +103,8 @@ int main(int argc, char* argv[])
 						return clara::ParserResult::ok(clara::ParseResultType::Matched);
 					}
 				}, "save MCS(=100)")
-		["-s"]["--save-mcs"]
-			   ("(required) Save after every <integer> Monte-Carlo steps to the output file." )
+		["-r"]["--replica-exchange-time"]
+			   ("(required) Time in MCS to try a replica exchange move." )
 			   .required()
 		| clara::Opt( [&bias_update_interval](int const b)
 			   	{
@@ -130,9 +134,17 @@ int main(int argc, char* argv[])
 			("Histogram file for (logarithmic) DOS to load.")
 			.required()
 		| clara::Opt( filedump, "filedump" )
-						["--dump"]
-						("boolean: dump file every save_interval.")
-						.required()
+			["--dump"]
+			("boolean: dump file every save_interval.")
+			.required()
+		| clara::Opt( overlap, "overlap (=0.75)" )
+			["--overlap"]
+			 ("Fraction of overlap [0,1] between neighboring windows.")
+			.required()
+		| clara::Opt( lengthIncrease, "lengthIncreaseWindow (=0.25)" )
+			["--length-increase"]
+			("Fractional increase of successive window length (0,1] between neighboring windows.")
+			.required()
 		| clara::Help( showHelp );
 
 		auto result = parser.parse( clara::Args( argc, argv ) );
@@ -243,12 +255,17 @@ int main(int argc, char* argv[])
 		}
 
 		// run the simulation and gather the information
-		double overlap = 0.75;
 
+		/* if lengthIncrease == 0
 		double lengthWindow = (maxWin-minWin)/(omp_get_num_threads()-(omp_get_num_threads()-1)*overlap);
-
 		double minWinThread = lengthWindow*tid*(1.0-overlap)+minWin;
 		double maxWinThread = minWinThread+lengthWindow;
+		*/
+
+		double lengthFirst=(maxWin-minWin)/(overlap+(1.0-overlap)*(std::pow((1.0+lengthIncrease), 1.0*omp_get_num_threads())-1.0)/lengthIncrease );
+
+		double minWinThread = minWin+lengthFirst*(std::pow((1.0+lengthIncrease), tid)-1.0)/lengthIncrease  - overlap*lengthFirst*(std::pow((1.0+lengthIncrease), (tid+1.0))-(1.0+lengthIncrease))/lengthIncrease;
+		double maxWinThread = minWinThread+lengthFirst*std::pow((1.0+lengthIncrease), 1.0*tid);
 
 
 		UpdaterReadBfmFile<Ing> UR(infile,myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE);
@@ -258,7 +275,7 @@ int main(int argc, char* argv[])
 
 		UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc> UWL(myIngredients,
 						save_interval,
-						bias_update_interval, modFactor, max_mcs, minWinThread, maxWinThread);
+						bias_update_interval, modFactor, max_mcs, minWinThread, maxWinThread, tid);
 
 
 

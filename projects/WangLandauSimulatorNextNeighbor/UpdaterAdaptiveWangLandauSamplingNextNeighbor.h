@@ -91,9 +91,7 @@ public:
 	,uint64_t maxAge=1000000000
 	,double minWindow = -100.0
 	,double maxWindow = +100.0
-	,uint32_t stepsBeforeHistogramUpdate=1000
-	,double convergenceThreshold=0.02,double fullFlatnessThreshold=0.1
-	,double binCountThreshold=10000.0
+	,int numWindow=0
 	);
 	
 	/**
@@ -259,7 +257,7 @@ private:
 	const uint32_t nStepsBeforeBiasCheck;
 	
 	//! Number of checks before update of histogram
-	const uint32_t nStepsBeforeHistogramUpdate;
+	uint32_t nStepsBeforeHistogramUpdate;
 	
 	//! current counter to decide if update check is needed
 	uint32_t counter_nStepsBeforeBiasCheck;
@@ -310,6 +308,8 @@ private:
 	bool iterationconverged;
 
 	bool iterationfirstconverged;
+
+	int numberIdxWindow;
 };
 
 
@@ -328,17 +328,13 @@ UpdaterAdaptiveWangLandauSamplingNextNeighbor(IngredientsType& ing,
 				uint64_t maxAge,
 				double _minWindow,
 				double _maxWindow,
-				uint32_t stepsBeforeHistogramUpdate,
-				double threshold,
-				double fullThreshold,
-				double binCountThreshold
+				int numberWindow
 				)
 ://ingredients(ing),
 nsteps(steps)
 ,counter_nStepsBeforeBiasCheck(0)
 ,counter_nStepsBeforeHistogramUpdate(0)
 ,nStepsBeforeBiasCheck(stepsBeforeBiasCheck)
-,nStepsBeforeHistogramUpdate(stepsBeforeHistogramUpdate)
 ,writeHistogramProgress(true)
 ,writePMFProgress(true)
 ,nUpdatesPerformed(0)
@@ -348,9 +344,6 @@ nsteps(steps)
 ,oldOldVariance(0.0)
 ,oldFlatnesValue(10.0)
 ,oldOldFlatnessValue(10.0)
-,convergenceThreshold(threshold)
-,fullFlatnessThreshold(fullThreshold)
-,maxBinsThreshold(binCountThreshold)
 ,initialModificationFactor(_initialModificationFactor)
 ,maxSystemAge(maxAge)
 ,minWindow(_minWindow)
@@ -358,8 +351,14 @@ nsteps(steps)
 ,prefixWindow("")
 ,iteration(0)
 ,simulationConverged(false)
+,numberIdxWindow(numberWindow)
 ,BaseClass(ing)
 {
+	nStepsBeforeHistogramUpdate=1000;
+	convergenceThreshold=0.02;
+	fullFlatnessThreshold=0.1;
+	maxBinsThreshold=10000.0;
+
 	varianceSeries.resize(0);
 	meanSeries.resize(0);
 	flatnessSeries.resize(0);
@@ -437,7 +436,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 			ingredients.setWindowState(true, minWindow, maxWindow);
 
 			std::stringstream ssprefixWindow;
-			ssprefixWindow << "_minWin" << minWindow << "_maxWin" <<  maxWindow;
+			ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow << "_minWin" << minWindow << "_maxWin" <<  maxWindow;
 
 			prefixWindow = ssprefixWindow.str();
 
@@ -583,7 +582,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 	mean = mean/(1.0*entries);
 	
 	// this can only happen if the energy window is to restrictive - auto-adjust and broaden the window
-	std::vector<double> currentTotalHistogramState=ingredients.getTotalVisitsEnergyStates().getVectorValues();//histogram.getVectorValues();
+	/*std::vector<double> currentTotalHistogramState=ingredients.getTotalVisitsEnergyStates().getVectorValues();//histogram.getVectorValues();
 	int entriesTotal = 0;
 	for(size_t n=0;n<currentTotalHistogramState.size();n++)
 		{
@@ -595,6 +594,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 				}
 			}
 		}
+	*/
 
 	/*if(entriesTotal <= 10)
 	{
@@ -621,11 +621,15 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 
 	bool isFlat = true;
 
+	int entriesTotal = 0;
+
 	for(size_t n=0;n<currentHistogramState.size();n++)
 	{
 		if( (ingredients.getVisitsEnergyStates().getCenterOfBin(n) >= ingredients.getMinWin()) && (ingredients.getVisitsEnergyStates().getCenterOfBin(n) <= ingredients.getMaxWin()) )
 		{
 			if( currentHistogramState.at(n) != 0.0)
+			{
+				entriesTotal++;
 				//	if(std::abs((currentHistogramState.at(n)-mean)/mean) > 0.33)
 				if(currentHistogramState.at(n)/mean < 0.85)
 				{
@@ -633,8 +637,13 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 
 					return false;
 				}
+			}
 		}
 	}
+
+	// to care that we have at least 10 entries avoid stucked conformations
+	if(entriesTotal <= 10)
+		return false;
 
 	// still here: histogramm converged
 	iterationconverged = true;
