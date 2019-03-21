@@ -348,7 +348,6 @@ nsteps(steps)
 ,maxSystemAge(maxAge)
 ,minWindow(_minWindow)
 ,maxWindow(_maxWindow)
-,prefixWindow("")
 ,iteration(0)
 ,simulationConverged(false)
 ,numberIdxWindow(numberWindow)
@@ -367,6 +366,11 @@ nsteps(steps)
 
 	iterationconverged=false;
 	iterationfirstconverged = false;
+
+	std::stringstream ssprefixWindow;
+	ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << numberWindow;
+	prefixWindow = ssprefixWindow.str();
+
 }
  
  

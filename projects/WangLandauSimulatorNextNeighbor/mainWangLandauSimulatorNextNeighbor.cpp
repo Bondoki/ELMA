@@ -497,9 +497,11 @@ int main(int argc, char* argv[])
 
 		*/
 
-		if (tid == 0)
+		//if (tid == 0)
 		{
-			outfile=infile+"_final";
+			std::stringstream ssprefixWindow;
+			ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << tid;
+			outfile=infile+ssprefixWindow.str()+"_final";
 
 			AnalyzerWriteBfmFile<Ing> ABFM(outfile,myIngredients);
 			ABFM.initialize();
