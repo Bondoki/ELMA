@@ -6,4 +6,4 @@ add_subdirectory(SimpleSimulatorNextNeighborInteraction)
 
 add_subdirectory(WangLandauSimulatorNextNeighbor)
 
-
+add_subdirectory(WangLandauSimulatorExtendedShellInteraction)
