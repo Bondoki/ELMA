@@ -87,6 +87,7 @@ public:
 	UpdaterAdaptiveWangLandauSamplingNextNeighbor(IngredientsType& ing
 	,uint32_t steps
 	,uint32_t stepsBeforeBiasCheck
+	,double _flatness=0.85
 	,double _initialModificationFactor=1.01
 	,uint64_t maxAge=1000000000
 	,double minWindow = -100.0
@@ -252,6 +253,8 @@ private:
 	int iteration;
 
 	double initialModificationFactor;
+    
+    double flatness;
 };
 
 
@@ -266,6 +269,7 @@ UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::
 UpdaterAdaptiveWangLandauSamplingNextNeighbor(IngredientsType& ing,
 				uint32_t steps, 
 				uint32_t stepsBeforeBiasCheck,
+                double _flatness,
 				double _initialModificationFactor,
 				uint64_t maxAge,
 				double _minWindow,
@@ -293,6 +297,7 @@ nsteps(steps)
 ,convergenceThreshold(threshold)
 ,fullFlatnessThreshold(fullThreshold)
 ,maxBinsThreshold(binCountThreshold)
+,flatness(_flatness)
 ,initialModificationFactor(_initialModificationFactor)
 ,maxSystemAge(maxAge)
 ,minWindow(_minWindow)
@@ -572,7 +577,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 		{
 			if( currentHistogramState.at(n) != 0.0)
 				//	if(std::abs((currentHistogramState.at(n)-mean)/mean) > 0.33)
-				if(currentHistogramState.at(n)/mean < 0.85)
+				if(currentHistogramState.at(n)/mean < flatness)
 				{
 					isFlat = false;
 

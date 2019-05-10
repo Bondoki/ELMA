@@ -38,6 +38,8 @@ int main(int argc, char* argv[])
 		double maxWin = +100.0;
 
 		bool showHelp = false;
+        
+        double flatness = 0.85;
 
 		auto parser
 		= clara::Opt( infile, "input (=input.bfm)" )
@@ -117,6 +119,10 @@ int main(int argc, char* argv[])
 			["--max-win"]
 			("maximal window boundary (=+100.0)")
 			.required()
+        | clara::Opt(  flatness, "flatness criterion of histogram iteration (=0.85)" )
+			["--flatness"]
+			("flatness criterion of histogram iteration (=0.85)")
+			.required()
 		| clara::Help( showHelp );
 
 		auto result = parser.parse( clara::Args( argc, argv ) );
@@ -178,7 +184,7 @@ int main(int argc, char* argv[])
 	
 	taskmanager.addUpdater(new UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc>(myIngredients,
 												    save_interval,
-										      bias_update_interval, modFactor, max_mcs, minWin, maxWin),
+										      bias_update_interval, flatness, modFactor, max_mcs, minWin, maxWin),
 					       1);
 	//taskmanager.addAnalyzer(new AnalyzerWriteBfmFile<Ing>(outfile,myIngredients));
 
