@@ -7,6 +7,8 @@
 #include <LeMonADE/updater/AbstractUpdater.h>
 #include <LeMonADE/updater/UpdaterAbstractCreate.h>
 
+#include <LeMonADE/analyzer/AnalyzerWriteBfmFile.h>
+
 #include "Histogram1D.h"
 
 /* ****************************************************************************
@@ -87,6 +89,7 @@ public:
 	UpdaterAdaptiveWangLandauSamplingNextNeighbor(IngredientsType& ing
 	,uint32_t steps
 	,uint32_t stepsBeforeBiasCheck
+	,double _flatness=0.85
 	,double _initialModificationFactor=1.01
 	,uint64_t maxAge=1000000000
 	,double minWindow = -100.0
@@ -132,6 +135,10 @@ public:
 		dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_iteration" + itr.str() +  "_final_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
 		dumpConvergenceProgress();
 		//updateModificationFactor();
+
+		std::stringstream ssprefixWindowBFM;
+		ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
+		writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + "_final.bfm"));
 	};
 	
 	
@@ -196,6 +203,11 @@ public:
 
 		}
 
+		std::stringstream ssprefixWindowBFM;
+		ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
+		writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
+
+
 	}
 
 	bool isIterationConverged() {return iterationconverged;};
@@ -218,6 +230,9 @@ private:
 	//! writes the time development of the mean,variance, and square deviation from average to file names convergence.dat
 	void dumpConvergenceProgress();
 	
+	//! write the currently state to bfm file
+	void writeBFM_File(std::string filePrefix);
+
 	//! update the used bias potential according to collected histogram
 	
 	void updateModificationFactor();
@@ -310,6 +325,8 @@ private:
 	bool iterationfirstconverged;
 
 	int numberIdxWindow;
+
+	double flatness;
 };
 
 
@@ -324,6 +341,7 @@ UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::
 UpdaterAdaptiveWangLandauSamplingNextNeighbor(IngredientsType& ing,
 				uint32_t steps, 
 				uint32_t stepsBeforeBiasCheck,
+				double _flatness,
 				double _initialModificationFactor,
 				uint64_t maxAge,
 				double _minWindow,
@@ -344,6 +362,7 @@ nsteps(steps)
 ,oldOldVariance(0.0)
 ,oldFlatnesValue(10.0)
 ,oldOldFlatnessValue(10.0)
+,flatness(_flatness)
 ,initialModificationFactor(_initialModificationFactor)
 ,maxSystemAge(maxAge)
 ,minWindow(_minWindow)
@@ -444,6 +463,10 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 
 			prefixWindow = ssprefixWindow.str();
 
+			std::stringstream ssprefixWindowBFM;
+			ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
+			writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
+
 			// delete all histograms
 
 			ingredients.modifyVisitsEnergyStates().reset(ingredients.getVisitsEnergyStates().getMinCoordinate(),ingredients.getVisitsEnergyStates().getMaxCoordinate(),ingredients.getVisitsEnergyStates().getNBins());
@@ -506,6 +529,8 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::in
 	dumpHistogram(std::string(ingredients.getName() + prefixWindow +  "_initial_histogram.dat"));
 	dumpTotalHistogram(std::string(ingredients.getName() + prefixWindow +  "_initial_totalhistogram.dat"));
 	dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_initial"));
+
+	writeBFM_File(std::string(ingredients.getName() + prefixWindow + "_initial.bfm"));
 }
 
 
@@ -635,7 +660,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 			{
 				entriesTotal++;
 				//	if(std::abs((currentHistogramState.at(n)-mean)/mean) > 0.33)
-				if(currentHistogramState.at(n)/mean < 0.85)
+				if(currentHistogramState.at(n)/mean < flatness)
 				{
 					isFlat = false;
 
@@ -828,6 +853,16 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::up
 	std::cout << "new modification factor :" << std::setprecision(15) << newModificationFactor << std::endl;
 }
 
+
+//write current state to bfm file
+template<class IngredientsType,class MoveType>
+void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::writeBFM_File(std::string filename)
+{
+	AnalyzerWriteBfmFile<IngredientsType> ABFM(filename, ingredients);
+	ABFM.initialize();
+	ABFM.execute();
+	ABFM.cleanup();
+}
 
 //write current histogram to file
 template<class IngredientsType,class MoveType>

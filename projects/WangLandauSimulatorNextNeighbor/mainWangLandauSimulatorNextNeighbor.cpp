@@ -51,6 +51,10 @@ int main(int argc, char* argv[])
 
 		double lengthIncrease = 0.25;
 
+		bool readinBFMinWin = false;
+
+		double flatness = 0.85;
+
 		auto parser
 		= clara::Opt( infile, "input (=input.bfm)" )
 		["-i"]["--infile"]
@@ -144,6 +148,14 @@ int main(int argc, char* argv[])
 		| clara::Opt( lengthIncrease, "lengthIncreaseWindow (=0.25)" )
 			["--length-increase"]
 			("Fractional increase of successive window length (0,1] between neighboring windows.")
+			.required()
+		| clara::Opt(  readinBFMinWin, "read separate bfm file for every window (=false)" )
+			["--read-in-BFM"]
+			("every window is initialized with separate bfm file (=false)")
+			.required()
+		| clara::Opt(  flatness, "flatness criterion of histogram iteration (=0.85)" )
+			["--flatness"]
+			("flatness criterion of histogram iteration (=0.85)")
 			.required()
 		| clara::Help( showHelp );
 
@@ -267,15 +279,29 @@ int main(int argc, char* argv[])
 		double minWinThread = minWin+lengthFirst*(std::pow((1.0+lengthIncrease), tid)-1.0)/lengthIncrease  - overlap*lengthFirst*(std::pow((1.0+lengthIncrease), (tid+1.0))-(1.0+lengthIncrease))/lengthIncrease;
 		double maxWinThread = minWinThread+lengthFirst*std::pow((1.0+lengthIncrease), 1.0*tid);
 
+		if(readinBFMinWin == false)
+		{
+			UpdaterReadBfmFile<Ing> UR(infile,myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE);
+			UR.initialize();
+			UR.execute();
+			UR.cleanup();
+		}
+		else
+		{
+			std::stringstream ssprefixWindowBFM;
+			ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << tid;
 
-		UpdaterReadBfmFile<Ing> UR(infile,myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE);
-		UR.initialize();
-		UR.execute();
-		UR.cleanup();
+			UpdaterReadBfmFile<Ing> UR(std::string(infile + ssprefixWindowBFM.str() + ".bfm"),myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE);
+			UR.initialize();
+			UR.execute();
+			UR.cleanup();
+
+			myIngredients.setName(infile);
+		}
 
 		UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc> UWL(myIngredients,
 						save_interval,
-						bias_update_interval, modFactor, max_mcs, minWinThread, maxWinThread, tid);
+						bias_update_interval, flatness, modFactor, max_mcs, minWinThread, maxWinThread, tid);
 
 
 
