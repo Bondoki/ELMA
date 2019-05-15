@@ -528,7 +528,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::in
 	resetHistogram();
 	dumpHistogram(std::string(ingredients.getName() + prefixWindow +  "_initial_histogram.dat"));
 	dumpTotalHistogram(std::string(ingredients.getName() + prefixWindow +  "_initial_totalhistogram.dat"));
-	dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_initial"));
+	dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_initial"), ingredients.getHGLnDOS().getMinCoordinate(), ingredients.getHGLnDOS().getMaxCoordinate());
 
 	writeBFM_File(std::string(ingredients.getName() + prefixWindow + "_initial.bfm"));
 }
