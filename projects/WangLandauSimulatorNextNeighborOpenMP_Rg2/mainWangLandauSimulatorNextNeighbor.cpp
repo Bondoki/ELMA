@@ -55,6 +55,8 @@ int main(int argc, char* argv[])
 
 		double flatness = 0.85;
 
+		uint32_t min_statistic_entries=100;
+
 		auto parser
 		= clara::Opt( infile, "input (=input.bfm)" )
 		["-i"]["--infile"]
@@ -122,7 +124,7 @@ int main(int argc, char* argv[])
 			   						return clara::ParserResult::ok(clara::ParseResultType::Matched);
 			   					}
 			   	}, "bias_update_interval MCS(=100)")
-			   		["-b"]["--bias-update-interval"]
+		["-b"]["--bias-update-interval"]
 			   			   ("(required) Update histogram interval after every <integer> Monte-Carlo steps to check the DOS." )
 			   			   .required()
 		| clara::Opt(  minWin, "min window (=-100.0)" )
@@ -156,6 +158,21 @@ int main(int argc, char* argv[])
 		| clara::Opt(  flatness, "flatness criterion of histogram iteration (=0.85)" )
 			["--flatness"]
 			("flatness criterion of histogram iteration (=0.85)")
+			.required()
+		| clara::Opt( [&min_statistic_entries](int const b)
+						   	{
+						   					if (b < 0)
+						   					{
+						   						return clara::ParserResult::runtimeError("min_statistic_entries must be greater than 0");
+						   					}
+						   					else
+						   					{
+						   						min_statistic_entries = b;
+						   						return clara::ParserResult::ok(clara::ParseResultType::Matched);
+						   					}
+						   	}, "min_statistic_entries (=100)")
+						   		["--min-statistic"]
+						   			   ("(required) <integer> Number of entries for calculating the average at specific energy." )
 			.required()
 		| clara::Help( showHelp );
 
@@ -304,6 +321,9 @@ int main(int argc, char* argv[])
 						bias_update_interval, flatness, modFactor, max_mcs, minWinThread, maxWinThread, tid);
 
 
+		//taskmanager.addUpdater(new UpdaterAdaptiveWangLandauSamplingNextNeighborAdaptiveWindowSimulationRun<Ing,MoveLocalSc>(myIngredients,
+		//							   minWin, maxWin, min_statistic_entries, max_mcs, save_interval),
+		//1);
 
 
 		UWL.initialize();
@@ -320,7 +340,7 @@ int main(int argc, char* argv[])
 		// here all threads are sync and in therir desried window
 		// run the simulations
 
-		do
+		//do
 		{
 #pragma omp barrier
 			// run the one iterartion until histogram converged
@@ -452,9 +472,9 @@ int main(int argc, char* argv[])
 
 				#pragma omp barrier
 
-				//UWL.histogramConverged();
-				//counter++;
-				if(UWL.histogramConverged() && UWL.isFirstConverged())
+
+				//if(UWL.histogramConverged() && UWL.isFirstConverged())
+				if(UWL.hasSufficientStatistics() && UWL.isFirstConverged())
 				{
 					UWL.outputConvergedIteration();
 
@@ -491,7 +511,7 @@ int main(int argc, char* argv[])
 			//reset for new iteration
 			UWL.doResetForNextIteration();
 
-		}while( !(myIngredients.getModificationFactor() < std::exp(std::pow(10,-8)) ) );
+		} //while( !(myIngredients.getModificationFactor() < std::exp(std::pow(10,-8)) ) );
 
 		// all iteration converged and f < exp(10-8)
 		#pragma omp barrier

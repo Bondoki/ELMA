@@ -91,6 +91,11 @@ public:
 			return histogram[bin].ReturnM2();
 		}
 
+	double getNumCountInBin(size_t bin) const
+			{
+				return histogram[bin].ReturnN();
+	}
+
 	double getNumCountAt(double x) const
 	{
 		return histogram[getBinNo(x)].ReturnN();

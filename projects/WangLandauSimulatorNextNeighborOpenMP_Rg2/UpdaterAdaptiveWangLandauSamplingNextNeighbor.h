@@ -10,6 +10,7 @@
 #include <LeMonADE/analyzer/AnalyzerWriteBfmFile.h>
 
 #include "Histogram1D.h"
+#include "HistogramGeneralStatistik1D.h"
 
 /* ****************************************************************************
  * Simulator for adaptive umbrella sampling along a (1D) reaction coordinate.
@@ -136,6 +137,9 @@ public:
 		dumpConvergenceProgress();
 		//updateModificationFactor();
 
+		dumpEnergyRG2HGLnDOS(std::string(ingredients.getName() + prefixWindow + "_final_E_HGLnDOS_RG2.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
+
+
 		std::stringstream ssprefixWindowBFM;
 		ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
 		writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + "_final.bfm"));
@@ -159,6 +163,9 @@ public:
 	
 	//! check if the histogram has converged according to chosen criteria
 	bool histogramConverged();
+
+	//! check if the histgramm has enough entries
+	bool hasSufficientStatistics();
 
 	void doResetForNextIteration()
 	{
@@ -203,6 +210,13 @@ public:
 
 		}
 
+		{
+			std::stringstream filenametmp;
+			filenametmp<<ingredients.getName() << prefixWindow << "_iteration" << std::setw(2) << std::setfill('0') << iteration << "_HGLnDOS" << "_mcs"<<ingredients.getMolecules().getAge() << ".dat";
+
+			dumpEnergyRG2HGLnDOS(filenametmp.str(), ingredients.getMinWin(), ingredients.getMaxWin());
+		}
+
 		std::stringstream ssprefixWindowBFM;
 		ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
 		writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
@@ -239,6 +253,9 @@ private:
 
 	//! write the currently logarithm of Density of States DOS i.e. file named HGLnDOS.dat
 	void dumpHGLnDOS(std::string prefix="", double min= std::numeric_limits<double>::min(), double max= std::numeric_limits<double>::max());
+
+	//! write the currently Rg2 as function of energy
+	void dumpEnergyRG2HGLnDOS(std::string prefix="", double min= std::numeric_limits<double>::min(), double max= std::numeric_limits<double>::max());
 
 	
 	//! reset the histogram to empty state
@@ -327,6 +344,12 @@ private:
 	int numberIdxWindow;
 
 	double flatness;
+
+	HistogramGeneralStatistik1D HG_Energy_Rg2;
+
+	uint32_t minStatisticEntries;
+
+	double calcRG2();
 };
 
 
@@ -390,6 +413,10 @@ nsteps(steps)
 	ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << numberWindow;
 	prefixWindow = ssprefixWindow.str();
 
+	minStatisticEntries = 3000;
+
+	HG_Energy_Rg2.reset(ingredients.getHGLnDOS().getMinCoordinate(), ingredients.getHGLnDOS().getMaxCoordinate(), ingredients.getHGLnDOS().getNBins());
+
 }
  
  
@@ -428,6 +455,12 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 					 dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_tmp_histogram.dat"));
 					 dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_tmp_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
 					 std::cout << "dump HGLnDOS " << ingredients.getMinWin() << "   " << ingredients.getMaxWin() << std::endl;
+
+
+					 std::cout<<"mcs "<<ingredients.getMolecules().getAge() << std::endl;
+					 dumpEnergyRG2HGLnDOS(std::string(ingredients.getName() + prefixWindow + "_tmp_E_HGLnDOS_RG2.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
+					 std::cout << "dump E_HGLnDOS_RG2 " << ingredients.getMinWin() << "   " << ingredients.getMaxWin() << std::endl;
+
 				}
 			
 
@@ -444,10 +477,10 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 			{
 				move.apply(ingredients);
 			}
-			else 
+			/*else
 			{ 
 				ingredients.rejectMove(ingredients);
-			}
+			}*/
 		}
 		//std::cout << " done" << std::endl;
 		
@@ -468,12 +501,15 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 			writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
 
 			// delete all histograms
+			HG_Energy_Rg2.reset(HG_Energy_Rg2.getMinCoordinate(),HG_Energy_Rg2.getMaxCoordinate(),HG_Energy_Rg2.getNBins());
+
 
 			ingredients.modifyVisitsEnergyStates().reset(ingredients.getVisitsEnergyStates().getMinCoordinate(),ingredients.getVisitsEnergyStates().getMaxCoordinate(),ingredients.getVisitsEnergyStates().getNBins());
 			ingredients.modifyTotalVisitsEnergyStates().reset(ingredients.getTotalVisitsEnergyStates().getMinCoordinate(),ingredients.getTotalVisitsEnergyStates().getMaxCoordinate(),ingredients.getTotalVisitsEnergyStates().getNBins());
 			//ingredients.modifyHGLnDOS().reset(ingredients.getHGLnDOS().getMinCoordinate(),ingredients.getHGLnDOS().getMaxCoordinate(),ingredients.getHGLnDOS().getNBins());
 
 		}
+
 
 
 
@@ -500,6 +536,14 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 		
 	}
 	
+	// calculate the observable
+	double RG2 = calcRG2();
+	double energy = ingredients.getInternalEnergyCurrentConfiguration(ingredients);
+	//		ingredients.getInternalEnergyWithoutCalculation();//getInternalEnergyCurrentConfiguration(ingredients);
+	HG_Energy_Rg2.addValue(energy, RG2);
+
+
+
 	//update age of system and give some more output on simulation progress
 	ingredients.modifyMolecules().setAge(ingredients.modifyMolecules().getAge()+nsteps);
 	std::cout<<"mcs "<<ingredients.getMolecules().getAge() << " with " << (((1.0*nsteps)*ingredients.getMolecules().size())/(std::difftime(std::time(NULL), startTimer)) ) << " [attempted moves/s]" <<std::endl;
@@ -574,6 +618,75 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::sh
 }
 
 
+//checks if mean, variance and deviation from average of the histogram have
+//changed more than the percentage threshold. If all has converged, the function
+//returns true
+template<class IngredientsType, class MoveType>
+bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hasSufficientStatistics()
+{
+	size_t counts = 0;
+	size_t nbins = 0;
+
+	    for(size_t n=0;n<HG_Energy_Rg2.getNBins();n++)
+			{
+				if( (HG_Energy_Rg2.getCenterOfBin(n) >= ingredients.getMinWin()) && (HG_Energy_Rg2.getCenterOfBin(n) <= ingredients.getMaxWin()) )
+	            {
+	                counts += HG_Energy_Rg2.getNumCountInBin(n);
+	                nbins++;
+	            }
+
+	        }
+
+	// check for minimal counts and avoid exit of the program
+	if(counts*nbins < minStatisticEntries)
+	   return false;
+
+
+	// check if all samples have their desired number of entries
+	if( ingredients.isEnergyInWindow() == true )
+	{
+		bool isStatisticSufficient = false;
+
+		for(size_t n=0;n<HG_Energy_Rg2.getNBins();n++)
+		{
+			if( (HG_Energy_Rg2.getCenterOfBin(n) >= ingredients.getMinWin()) && (HG_Energy_Rg2.getCenterOfBin(n) <= ingredients.getMaxWin()) )
+			{
+				// no counts at all in the bin
+				//if(HG_Energy_Rg2.getNumCountInBin(n) == 0)
+				//		return true;
+
+
+				// some bins can not be filled
+				if((HG_Energy_Rg2.getNumCountInBin(n) > 0) && (HG_Energy_Rg2.getNumCountInBin(n) < minStatisticEntries))
+				{
+					isStatisticSufficient = true;
+
+					//std::cout << "need adding entries at bin" << n  << " at E=" << HG_Energy_Rg2.getCenterOfBin(n) << " with " << HG_Energy_Rg2.getNumCountInBin(n) << " / " <<  minStatisticEntries << std::endl;
+
+					return false;
+				}
+			}
+		}
+
+		// minimum number of statistical entries reached - end simulation
+		//if(isStatisticSufficient == true)
+		//{
+		//	std::cout << "Statistic reached desired number in energy window: [" << minWindow << " ; " << maxWindow << "] " << std::endl;
+		//
+		//	return false;
+		//}
+
+
+	}
+	else return false;
+
+	// still here: histogramm converged
+	iterationconverged = true;
+
+	iterationfirstconverged = true;
+
+	return true;
+}
 
 //checks if mean, variance and deviation from average of the histogram have
 //changed more than the percentage threshold. If all has converged, the function
@@ -967,6 +1080,85 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 	
 }
 
+//write current bias potential to file
+template<class IngredientsType,class MoveType>
+void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::dumpEnergyRG2HGLnDOS(std::string prefix, double _min, double _max)
+{
+	std::stringstream filename;
+	filename<< prefix;// << "_HGLnDOS" << "_mcs"<<ingredients.getMolecules().getAge()<<".dat";
+	std::ofstream file(filename.str().c_str());
+
+	file << "# " << ingredients.getName() << std::endl;
+	file << "# MCS: " << std::setprecision(15) << ingredients.getMolecules().getAge() << std::endl;
+	file << "# histogram HG_E_LnDOS: [" << ingredients.getHGLnDOS().getMinCoordinate() << " ; " << ingredients.getHGLnDOS().getMaxCoordinate() << " ; " << ingredients.getHGLnDOS().getNBins() << " ]" << std::endl;
+	file << "# histogram HG_E_RG2: [" << HG_Energy_Rg2.getMinCoordinate() << " ; " << HG_Energy_Rg2.getMaxCoordinate() << " ; " << HG_Energy_Rg2.getNBins() << " ]" << std::endl;
+	file << "# " << std::endl;
+	file << "# energyE <LnDOS> <Rg2(E)> countsRg2" << std::endl;
+
+	// fill the list
+	for(size_t n=0;n<HG_Energy_Rg2.getNBins();n++)
+		{
+			if( (ingredients.getHGLnDOS().getCenterOfBin(n) >= _min) && (ingredients.getHGLnDOS().getCenterOfBin(n) <= _max) )
+				if(HG_Energy_Rg2.getNumCountInBin(n) != 0)
+			{
+				file << std::setprecision(15) << HG_Energy_Rg2.getCenterOfBin(n) << "\t";
+				file << std::setprecision(15) << ingredients.getHGLnDOS().getFirstMomentInBin(n) << "\t";
+				file << std::setprecision(15) << HG_Energy_Rg2.getFirstMomentInBin(n) << "\t";
+				file << std::setprecision(15) << HG_Energy_Rg2.getNumCountInBin(n) << "\n";
+
+			}
+		}
+
+	file.close();
+
+}
+
+template<class IngredientsType, class MoveType>
+double UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::calcRG2()
+{
+		//std::cout << "SimpleAnalyzer_Rg2.execute() at MCS:" << ingredients.getMolecules().getAge() << std::endl;
+
+		int monomerCounter = 0;
+
+		double Rg2 = 0.0;
+		double Rg2_x = 0.0;
+		double Rg2_y = 0.0;
+		double Rg2_z = 0.0;
+
+		for (int k= 0; k < ingredients.getMolecules().size(); k++)
+		{
+			for (int l= k; l < ingredients.getMolecules().size(); l++)
+			//	 if((ingredients.getMolecules()[k].getAttributeTag()==1) && (ingredients.getMolecules()[l].getAttributeTag()==1))
+			{
+				Rg2_x += (ingredients.getMolecules()[k].getX()-ingredients.getMolecules()[l].getX())*(ingredients.getMolecules()[k].getX()-ingredients.getMolecules()[l].getX());
+				Rg2_y += (ingredients.getMolecules()[k].getY()-ingredients.getMolecules()[l].getY())*(ingredients.getMolecules()[k].getY()-ingredients.getMolecules()[l].getY());
+				Rg2_z += (ingredients.getMolecules()[k].getZ()-ingredients.getMolecules()[l].getZ())*(ingredients.getMolecules()[k].getZ()-ingredients.getMolecules()[l].getZ());
+
+
+			}
+
+			//if((ingredients.getMolecules()[k].getAttributeTag()==1))
+				monomerCounter++;
+		}
+		/*if(monomerCounter != ingredients.getMolecules().size())
+		{
+			throw std::runtime_error("invalid number of monomers in COM-calculation");
+		}*/
+
+		/*if(monomerCounter != 256)
+				{
+					throw std::runtime_error("invalid number of monomers in COM-calculation");
+				}
+		*/
+
+		Rg2_x /= 1.0*(monomerCounter*monomerCounter);//ingredients.getMolecules().size()*ingredients.getMolecules().size());
+		Rg2_y /= 1.0*(monomerCounter*monomerCounter);//ingredients.getMolecules().size()*ingredients.getMolecules().size());
+		Rg2_z /= 1.0*(monomerCounter*monomerCounter);//ingredients.getMolecules().size()*ingredients.getMolecules().size());
+
+		Rg2 = Rg2_x+Rg2_y+Rg2_z;
+
+		return Rg2;
+}
 
 
 #endif

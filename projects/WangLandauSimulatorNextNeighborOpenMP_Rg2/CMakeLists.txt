@@ -19,7 +19,7 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-add_executable(WangLandauSimulatorNextNeighborOpenMP mainWangLandauSimulatorNextNeighbor.cpp)
+add_executable(WangLandauSimulatorNextNeighborOpenMP_Rg2 mainWangLandauSimulatorNextNeighbor.cpp)
 
-target_link_libraries(WangLandauSimulatorNextNeighborOpenMP LeMonADE )
+target_link_libraries(WangLandauSimulatorNextNeighborOpenMP_Rg2 LeMonADE )
 

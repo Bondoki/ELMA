@@ -369,7 +369,7 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::applyMove(IngredientsType&
 	//HG_VisitsEnergyStates.addValue(Energy, 1.0);
 	//HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 
-	if(windowingState == false)
+/*	if(windowingState == false)
 	{
 		HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 		HG_VisitsEnergyStates.addValue(Energy, 1.0);
@@ -384,72 +384,8 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::applyMove(IngredientsType&
 		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 
 	}
+*/
 
-	/*if(	HG_LnDOS.getNumCountAt(Energy) != 0)
-	{
-		if(windowingState == false)
-		{
-			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
-			HG_VisitsEnergyStates.addValue(Energy, 1.0);
-			HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
-		}
-		else
-		{
-			if(  (Energy > minWin-4.0*HG_LnDOS.getBinwidth()) && (Energy < maxWin+4.0*HG_LnDOS.getBinwidth()) )
-			{
-				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
-				HG_VisitsEnergyStates.addValue(Energy, 1.0);
-				HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
-			}
-		}
-		//if(lnDOSmin < HG_LnDOS.getCountAt(Energy))
-		//	lnDOSmin = HG_LnDOS.getCountAt(Energy);
-	}
-	else
-	{
-		//find minimum
-
-		double eln = HG_LnDOS.getFirstMomentInBin(0);
-		double visits = 1.0;
-		for (size_t n=1; n < HG_LnDOS.getNBins(); n++) {
-			if ((HG_LnDOS.getFirstMomentInBin(n) < eln && HG_LnDOS.getFirstMomentInBin(n) != 0 ) || eln == 0)
-			{
-				eln = HG_LnDOS.getFirstMomentInBin(n);
-				visits = HG_VisitsEnergyStates.getCountInBin(n);
-			}
-		}
-
-		if(visits != 0)
-		{
-			numHistoVisits = visits;
-			lnDOSmin = eln;
-		}
-
-		//std::cout << "lnDOSmin " << lnDOSmin  << " visits: " << numHistoVisits <<  std::endl;
-		//std::cout << "e " << e   << " visits: " << visits <<  std::endl;
-
-
-
-
-		//if(lnDOSmin < HG_LnDOS.getCountAt(Energy))
-		//				lnDOSmin = HG_LnDOS.getCountAt(Energy);
-		if(windowingState == false)
-		{
-			HG_LnDOS.resetValue(Energy, lnDOSmin );
-			HG_VisitsEnergyStates.addValue(Energy, numHistoVisits);//lnDOSmin/std::log(modificationFactor));//1.0);
-			HG_TotalVisitsEnergyStates.addValue(Energy, numHistoVisits);//lnDOSmin/std::log(modificationFactor));//1.0);
-		}
-		else
-		{
-			if(  (Energy > minWin-4.0*HG_LnDOS.getBinwidth()) && (Energy < maxWin+4.0*HG_LnDOS.getBinwidth()) )
-			{
-				HG_LnDOS.resetValue(Energy, lnDOSmin );
-				HG_VisitsEnergyStates.addValue(Energy, numHistoVisits);//lnDOSmin/std::log(modificationFactor));//1.0);
-				HG_TotalVisitsEnergyStates.addValue(Energy, numHistoVisits);//lnDOSmin/std::log(modificationFactor));//1.0);
-			}
-		}
-	}
-	*/
 
 }
 
