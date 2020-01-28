@@ -1128,7 +1128,7 @@ double UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::
 		for (int k= 0; k < ingredients.getMolecules().size(); k++)
 		{
 			for (int l= k; l < ingredients.getMolecules().size(); l++)
-			//	 if((ingredients.getMolecules()[k].getAttributeTag()==1) && (ingredients.getMolecules()[l].getAttributeTag()==1))
+				 if((ingredients.getMolecules()[k].getAttributeTag()!=3) && (ingredients.getMolecules()[l].getAttributeTag()!=3))
 			{
 				Rg2_x += (ingredients.getMolecules()[k].getX()-ingredients.getMolecules()[l].getX())*(ingredients.getMolecules()[k].getX()-ingredients.getMolecules()[l].getX());
 				Rg2_y += (ingredients.getMolecules()[k].getY()-ingredients.getMolecules()[l].getY())*(ingredients.getMolecules()[k].getY()-ingredients.getMolecules()[l].getY());
@@ -1137,7 +1137,7 @@ double UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::
 
 			}
 
-			//if((ingredients.getMolecules()[k].getAttributeTag()==1))
+			if((ingredients.getMolecules()[k].getAttributeTag()!=3))
 				monomerCounter++;
 		}
 		/*if(monomerCounter != ingredients.getMolecules().size())
