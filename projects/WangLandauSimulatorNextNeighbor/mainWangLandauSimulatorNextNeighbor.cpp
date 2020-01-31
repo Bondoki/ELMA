@@ -392,8 +392,11 @@ int main(int argc, char* argv[])
 				#pragma omp barrier
 					if (tid == rnd_tid)
 					{
+
 						// check boundary windows
+						// only one decision for both
 						if((energyState[1] < energyWinEnd[0]) && (energyState[0] > energyWinStart[1]) )
+							if((energyState[1] < energyWinEnd[0]) && (energyState[0] > energyWinStart[1]) )
 						{
 							double diffLnDOS = lnDOSenergyOld[0]+lnDOSenergyOld[1]-lnDOSenergyNew[0]-lnDOSenergyNew[1];
 
@@ -401,14 +404,20 @@ int main(int argc, char* argv[])
 							if(diffLnDOS < 0.0)
 								p=std::exp(diffLnDOS);
 
-							if(rng.r250_drand() < p)
+							if(rng.r250_drand() < p){
 								acceptExchange[0] = true;
+								acceptExchange[1] = true;
+							}
+							else
+							{
+								//reject exchange
+							}
 						
 						#pragma  omp flush
 						}
 					}
 
-					if (tid == rnd_tid+1)
+					/*if (tid == rnd_tid+1)
 					{
 						if((energyState[1] < energyWinEnd[0]) && (energyState[0] > energyWinStart[1]) )
 						{
@@ -424,6 +433,7 @@ int main(int argc, char* argv[])
 						#pragma  omp flush
 						}
 					}
+					*/
 				#pragma omp barrier
 					if (tid == rnd_tid)
 					{
@@ -434,6 +444,11 @@ int main(int argc, char* argv[])
 							myIngredients.synchronize();
 						#pragma  omp flush
 						}
+						else
+						{
+							myIngredients.rejectMove(myIngredients);
+							#pragma  omp flush
+						}
 					}
 					if (tid == rnd_tid+1)
 					{
@@ -443,6 +458,11 @@ int main(int argc, char* argv[])
 							myIngredients.modifyMolecules() = mol[0];
 							myIngredients.synchronize();
 						#pragma  omp flush
+						}
+						else
+						{
+							myIngredients.rejectMove(myIngredients);
+							#pragma  omp flush
 						}
 					}
 

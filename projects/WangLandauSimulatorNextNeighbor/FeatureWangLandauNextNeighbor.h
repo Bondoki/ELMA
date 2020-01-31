@@ -320,7 +320,7 @@ bool FeatureWangLandauNextNeighbor<LatticeClassType>::checkMove(const Ingredient
 		diffEnergy = calculateInteractionDifference(ingredients,move);
 
 		//if( (((Energy+diffEnergy) > minWin-2.0*HG_LnDOS.getBinwidth()) && ((Energy+diffEnergy) < maxWin+2.0*HG_LnDOS.getBinwidth())) && ( (Energy > minWin-2.0*HG_LnDOS.getBinwidth()) && (Energy < maxWin+2.0*HG_LnDOS.getBinwidth()) ))
-		if( ( ((Energy+diffEnergy) > minWin) && ((Energy+diffEnergy) < maxWin)) )
+		if( ( ((Energy+diffEnergy) >= minWin) && ((Energy+diffEnergy) <= maxWin)) )
 		{
 			//std::cout << "EnergyOld: " << Energy <<"\t EnergyNew: " << (Energy+diffEnergy)  << " \t dEnergy: " << (diffEnergy) << std::endl;
 

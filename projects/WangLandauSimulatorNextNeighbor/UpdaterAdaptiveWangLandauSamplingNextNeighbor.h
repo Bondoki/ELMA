@@ -452,7 +452,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 		//std::cout << " done" << std::endl;
 		
 		//if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) < maxWindow+2*ingredients.getHGLnDOS().getBinwidth()) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) > minWindow-2*ingredients.getHGLnDOS().getBinwidth()) )
-		if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) < maxWindow) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) > minWindow) )
+		if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) <= maxWindow) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) >= minWindow) )
 		{
 			std::cout << "RW is in energy window: [" << minWindow << " ; " << maxWindow << "] with " <<  ingredients.getInternalEnergyCurrentConfiguration(ingredients) << std::endl;
 			// RW is in energy window
@@ -467,11 +467,17 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 			ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
 			writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
 
+			//dump histograms in the start of iteration procedure
+			dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_startIteration_histogram.dat"));
+			dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_startIteration_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
+
 			// delete all histograms
 
 			ingredients.modifyVisitsEnergyStates().reset(ingredients.getVisitsEnergyStates().getMinCoordinate(),ingredients.getVisitsEnergyStates().getMaxCoordinate(),ingredients.getVisitsEnergyStates().getNBins());
 			ingredients.modifyTotalVisitsEnergyStates().reset(ingredients.getTotalVisitsEnergyStates().getMinCoordinate(),ingredients.getTotalVisitsEnergyStates().getMaxCoordinate(),ingredients.getTotalVisitsEnergyStates().getNBins());
-			//ingredients.modifyHGLnDOS().reset(ingredients.getHGLnDOS().getMinCoordinate(),ingredients.getHGLnDOS().getMaxCoordinate(),ingredients.getHGLnDOS().getNBins());
+
+			// rest HGLnDOS to avoid overshoot at boundaries
+			ingredients.modifyHGLnDOS().reset(ingredients.getHGLnDOS().getMinCoordinate(),ingredients.getHGLnDOS().getMaxCoordinate(),ingredients.getHGLnDOS().getNBins());
 
 		}
 
@@ -528,6 +534,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::in
 	resetHistogram();
 	dumpHistogram(std::string(ingredients.getName() + prefixWindow +  "_initial_histogram.dat"));
 	dumpTotalHistogram(std::string(ingredients.getName() + prefixWindow +  "_initial_totalhistogram.dat"));
+	//dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_initial"), ingredients.getHGLnDOS().getMinCoordinate(), ingredients.getHGLnDOS().getMaxCoordinate());
 	dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_initial"), ingredients.getHGLnDOS().getMinCoordinate(), ingredients.getHGLnDOS().getMaxCoordinate());
 
 	writeBFM_File(std::string(ingredients.getName() + prefixWindow + "_initial.bfm"));
@@ -880,6 +887,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor() << std::endl;
 	file << "# Iteration" << iteration << std::endl;
 	file << "# histogram: [" << ingredients.getVisitsEnergyStates().getMinCoordinate() << " ; " << ingredients.getVisitsEnergyStates().getMaxCoordinate() << " ; " << ingredients.getVisitsEnergyStates().getNBins() << " ]" << std::endl;
+	file << "# used histogram: [" << ingredients.getMinWin() << " ; " << ingredients.getMaxWin() << " ]" << std::endl;
 	file << "# " << std::endl;
 
 
@@ -899,7 +907,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 
 	std::ofstream file(filename.c_str());
 
-	std::vector<double> currentHistogram=ingredients.getTotalVisitsEnergyStates().getVectorValuesNormalized();//.histogram.getVectorValues();
+	std::vector<double> currentHistogram=ingredients.getTotalVisitsEnergyStates().getVectorValues();//.getVectorValuesNormalized();//.histogram.getVectorValues();
 	std::vector<double> bins=ingredients.getTotalVisitsEnergyStates().getVectorBins();//histogram.getVectorBins();
 
 	file << "# " << ingredients.getName() << std::endl;
@@ -908,6 +916,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor() << std::endl;
 	file << "# Iteration" << iteration << std::endl;
 	file << "# histogram: [" << ingredients.getTotalVisitsEnergyStates().getMinCoordinate() << " ; " << ingredients.getTotalVisitsEnergyStates().getMaxCoordinate() << " ; " << ingredients.getTotalVisitsEnergyStates().getNBins() << " ]" << std::endl;
+	file << "# used histogram: [" << ingredients.getMinWin() << " ; " << ingredients.getMaxWin() << " ]" << std::endl;
 	file << "# " << std::endl;
 
 	for(size_t n=0;n<currentHistogram.size();n++){
@@ -937,6 +946,8 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor() << std::endl;
 	file << "# Iteration" << iteration << std::endl;
 	file << "# histogram: [" << ingredients.getHGLnDOS().getMinCoordinate() << " ; " << ingredients.getHGLnDOS().getMaxCoordinate() << " ; " << ingredients.getHGLnDOS().getNBins() << " ]" << std::endl;
+	file << "# used histogram: [" << ingredients.getMinWin() << " ; " << ingredients.getMaxWin() << " ]" << std::endl;
+	file << "# vs histogram: [" << _min << " ; " << _max << " ]" << std::endl;
 	file << "# " << std::endl;
 
 	for(size_t n=0;n<currentHGLnDOS.size();n++){
