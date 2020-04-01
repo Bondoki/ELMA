@@ -40,6 +40,8 @@ int main(int argc, char* argv[])
 		double maxWin = +100.0;
 
 		bool showHelp = false;
+        
+        double flatness = 0.85;
 
 		bool filedump = false;
 
@@ -129,6 +131,10 @@ int main(int argc, char* argv[])
 						["--dump"]
 						("boolean: dump file every save_interval.")
 						.required()
+        | clara::Opt(  flatness, "flatness criterion of histogram iteration (=0.85)" )
+			["--flatness"]
+			("flatness criterion of histogram iteration (=0.85)")
+			.required()
 		| clara::Help( showHelp );
 
 		auto result = parser.parse( clara::Args( argc, argv ) );
@@ -222,7 +228,7 @@ int main(int argc, char* argv[])
 	
 	taskmanager.addUpdater(new UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc>(myIngredients,
 												    save_interval,
-										      bias_update_interval, modFactor, max_mcs, minWin, maxWin),
+										      bias_update_interval, flatness, modFactor, max_mcs, minWin, maxWin),
 					       1);
 
 	if(filedump)
