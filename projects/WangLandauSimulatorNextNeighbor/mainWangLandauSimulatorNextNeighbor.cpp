@@ -310,6 +310,11 @@ int main(int argc, char* argv[])
 
 		std::cout << "Thread " << tid << " with window [ " <<   minWinThread << " ; " << maxWinThread << " ] " << std::endl;
 
+		// if some BFM-files are read in its highly likely that they already in window
+		if(readinBFMinWin == true)
+		{
+			UWL.checkForFirstWindowAppearance();
+		}
 		// run as long to reach desired window
 		do
 		{

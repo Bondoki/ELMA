@@ -152,7 +152,7 @@ public:
 	void setFullConvergenceThreshold(double threshold){fullFlatnessThreshold=threshold;}
 	
 	//! return the threshold for complete convergence of histogram (for final simulation convergence)
-	void getFullConvergenceThreshold() const {return fullFlatnessThreshold;}
+	double getFullConvergenceThreshold() const {return fullFlatnessThreshold;}
 	
 	//! get the number of pmf updates performed up to now on the bias potential
 	uint32_t getNPerformedUpdates()const{return nUpdatesPerformed;}
@@ -215,6 +215,8 @@ public:
 	bool isFirstConverged() {return iterationfirstconverged;};
 
 	void unsetFirstConverged() {iterationfirstconverged=false;};
+
+	void checkForFirstWindowAppearance();
 
 private:
 	using BaseClass::ingredients;
@@ -452,34 +454,8 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 		//std::cout << " done" << std::endl;
 		
 		//if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) < maxWindow+2*ingredients.getHGLnDOS().getBinwidth()) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) > minWindow-2*ingredients.getHGLnDOS().getBinwidth()) )
-		if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) <= maxWindow) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) >= minWindow) )
-		{
-			std::cout << "RW is in energy window: [" << minWindow << " ; " << maxWindow << "] with " <<  ingredients.getInternalEnergyCurrentConfiguration(ingredients) << std::endl;
-			// RW is in energy window
-			ingredients.setWindowState(true, minWindow, maxWindow);
+		checkForFirstWindowAppearance();
 
-			std::stringstream ssprefixWindow;
-			ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow << "_minWin" << minWindow << "_maxWin" <<  maxWindow;
-
-			prefixWindow = ssprefixWindow.str();
-
-			std::stringstream ssprefixWindowBFM;
-			ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
-			writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
-
-			//dump histograms in the start of iteration procedure
-			dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_startIteration_histogram.dat"));
-			dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_startIteration_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
-
-			// delete all histograms
-
-			ingredients.modifyVisitsEnergyStates().reset(ingredients.getVisitsEnergyStates().getMinCoordinate(),ingredients.getVisitsEnergyStates().getMaxCoordinate(),ingredients.getVisitsEnergyStates().getNBins());
-			ingredients.modifyTotalVisitsEnergyStates().reset(ingredients.getTotalVisitsEnergyStates().getMinCoordinate(),ingredients.getTotalVisitsEnergyStates().getMaxCoordinate(),ingredients.getTotalVisitsEnergyStates().getNBins());
-
-			// rest HGLnDOS to avoid overshoot at boundaries
-			ingredients.modifyHGLnDOS().reset(ingredients.getHGLnDOS().getMinCoordinate(),ingredients.getHGLnDOS().getMaxCoordinate(),ingredients.getHGLnDOS().getNBins());
-
-		}
 
 
 
@@ -540,6 +516,39 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::in
 	writeBFM_File(std::string(ingredients.getName() + prefixWindow + "_initial.bfm"));
 }
 
+// check if system is in window and reset all histograms
+template<class IngredientsType, class MoveType>
+void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::checkForFirstWindowAppearance()
+{
+	if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) <= maxWindow) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) >= minWindow) )
+			{
+				std::cout << "RW is in energy window: [" << minWindow << " ; " << maxWindow << "] with " <<  ingredients.getInternalEnergyCurrentConfiguration(ingredients) << std::endl;
+				// RW is in energy window
+				ingredients.setWindowState(true, minWindow, maxWindow);
+
+				std::stringstream ssprefixWindow;
+				ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow << "_minWin" << minWindow << "_maxWin" <<  maxWindow;
+
+				prefixWindow = ssprefixWindow.str();
+
+				std::stringstream ssprefixWindowBFM;
+				ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
+				writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
+
+				//dump histograms in the start of iteration procedure
+				dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_startIteration_histogram.dat"));
+				dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_startIteration_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
+
+				// delete all histograms
+
+				ingredients.modifyVisitsEnergyStates().reset(ingredients.getVisitsEnergyStates().getMinCoordinate(),ingredients.getVisitsEnergyStates().getMaxCoordinate(),ingredients.getVisitsEnergyStates().getNBins());
+				ingredients.modifyTotalVisitsEnergyStates().reset(ingredients.getTotalVisitsEnergyStates().getMinCoordinate(),ingredients.getTotalVisitsEnergyStates().getMaxCoordinate(),ingredients.getTotalVisitsEnergyStates().getNBins());
+
+				// rest HGLnDOS to avoid overshoot at boundaries
+				ingredients.modifyHGLnDOS().reset(ingredients.getHGLnDOS().getMinCoordinate(),ingredients.getHGLnDOS().getMaxCoordinate(),ingredients.getHGLnDOS().getNBins());
+
+			}
+}
 
 template<class IngredientsType, class MoveType>
 void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::resetHistogram()

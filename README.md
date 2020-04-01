@@ -19,6 +19,7 @@ Repository with updates, analyzers, and projects for sharing BFM stuff related t
 
 ## Test WL-OpenMP
 ````sh
+export OMP_NUM_THREADS=<number of threads to use>
 ./WangLandauSimulatorNextNeighborOpenMP -i LinearChain_N32_PerXYZ128_NNS_E-0.4.bfm --min -10000.2 --max 0.6 --bins 25002 -m 100000000000 -r 10 -b 10000 -f 1.1 --min-win -95.0 --max-win 0.4 --HGLnDOS LinearChain_N32_PerXYZ128_NNS_E-0.4_HGLnDOS_shifted_01.dat --dump 0 --overlap 0.5 --length-increase 0.125 --read-in-BFM 0 --flatness 0.2 > /dev/null 2>&1
 ````
 
