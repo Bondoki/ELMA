@@ -687,7 +687,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 	}
 
 	// to care that we have at least 10 entries avoid stucked conformations
-	if(entriesTotal <= 10)
+	if(entriesTotal <= 5)
 		return false;
 
 	// still here: histogramm converged

@@ -26,6 +26,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 #include <iostream>
 #include <algorithm>    // for min_element
+#include <string>
 
 #include <LeMonADE/updater/moves/MoveBase.h>
 #include <LeMonADE/updater/moves/MoveLocalSc.h>
@@ -121,7 +122,8 @@ public:
 		  lnDOSmin = 1.01;
 		  numHistoVisits = 1.0;
 
-		  ExtendedShellRadius = 2.1;
+		  ShellInteractionType = "EShell";
+		  ExtendedShellRadius = 2.451; // for 2² <= d <= 6
 		  ExtendedShell.clear();
 
 		  ExtendedShellMinusXDirNew.clear();
@@ -249,6 +251,14 @@ public:
 		this->maxWin = maxWin;
 	}
 
+	std::string getShellInteractionType() const {
+		return ShellInteractionType;
+	}
+
+	void setShellInteractionType(std::string shellType) {
+		ShellInteractionType = shellType;
+	}
+
 private:
 	
 	
@@ -325,6 +335,8 @@ private:
   //! Extended Shell radius
   double ExtendedShellRadius;
 
+  //! Interaction Shell Type
+  std::string ShellInteractionType;
 };
 
 
@@ -636,6 +648,15 @@ template<template<typename> class LatticeClassType>
 template<class IngredientsType>
 void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::synchronize(IngredientsType& ingredients)
 {
+	// check if we using the right interaction shell
+	if(this->ShellInteractionType.compare("EShell") != 0)
+	{
+		std::stringstream errormessage;
+		errormessage<<"***FeatureExtendedShellInteraction::synchronize***\n";
+		errormessage<<"ShellInteractionType is set to " << ShellInteractionType << "\n";
+		errormessage<<"But expect EShell to work properly. Exiting\n";
+		throw std::runtime_error(errormessage.str());
+	}
 	//refill the lattice with attribute tags
 	//caution: this overwrites, what is currently written on the lattice
 	std::cout << "FeatureWangLandauExtendedShellInteraction::synchronizing lattice occupation...";
@@ -1352,6 +1373,8 @@ void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::exportRead(Fil
   typedef FeatureWangLandauExtendedShellInteraction<LatticeClassType> my_type;
   fileReader.registerRead("!nn_interaction",new ReadExtendedShellInteraction<my_type>(*this));
   fileReader.registerRead("!nn_interaction_shell_radius",new ReadExtendedShellInteractionRadius<my_type>(*this));
+  fileReader.registerRead("!nn_interaction_shell_type",new ReadExtendedShellInteractionType<my_type>(*this));
+
 }
 
 
@@ -1374,6 +1397,7 @@ void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::exportWrite(An
   typedef FeatureWangLandauExtendedShellInteraction<LatticeClassType> my_type;
   fileWriter.registerWrite("!nn_interaction",new WriteExtendedShellInteraction<my_type>(*this));
   fileWriter.registerWrite("!nn_interaction_shell_radius",new WriteExtendedShellInteractionRadius<my_type>(*this));
+  fileWriter.registerWrite("!nn_interaction_shell_type",new WriteExtendedShellInteractionType<my_type>(*this));
   fileWriter.registerWrite("#!energy",new WriteExtendedShellInteractionEnergy<IngredientsType>(fileWriter.getIngredients_()));
 
 }

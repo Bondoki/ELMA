@@ -3,7 +3,7 @@
   o\.|./o    e   xtensible     | LeMonADE: An Open Source Implementation of the
  o\.\|/./o   Mon te-Carlo      |           Bond-Fluctuation-Model for Polymers
 oo---0---oo  A   lgorithm and  |
- o/./|\.\o   D   evelopment    | Copyright (C) 2013-2015 by 
+ o/./|\.\o   D   evelopment    | Copyright (C) 2013-2020 by
   o/.|.\o    E   nvironment    | LeMonADE Principal Developers (see AUTHORS)
     ooo                        | 
 ----------------------------------------------------------------------------------
@@ -30,12 +30,14 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
  * @file
- * @date 2016/06/18
- * @author Hauke Rabbel
+ * @date 2016/06/18, 2020/04/01
+ * @author Hauke Rabbel, Ron Dockhorn
  * @brief Def. and impl. of class templates ReadExtendedShellInteraction and WriteExtendedShellInteraction
 **/
 
 #include <iostream>
+#include <string>
+
 #include <LeMonADE/io/AbstractRead.h>
 #include <LeMonADE/io/AbstractWrite.h>
 
@@ -103,6 +105,41 @@ public:
         :AbstractWrite<IngredientsType>(i){this->setHeaderOnly(true);}
 
     virtual ~WriteExtendedShellInteractionRadius(){}
+
+    virtual void writeStream(std::ostream& strm);
+};
+
+
+/**
+ * @class ReadExtendedShellInteractionType
+ * @brief Handles BFM-file read command !nn_interaction_shell_type
+ * @tparam IngredientsType Ingredients class storing all system information.
+**/
+template < class IngredientsType>
+class ReadExtendedShellInteractionType: public ReadToDestination<IngredientsType>
+{
+public:
+    ReadExtendedShellInteractionType(IngredientsType& i):ReadToDestination<IngredientsType>(i){}
+    virtual ~ReadExtendedShellInteractionType(){}
+    virtual void execute();
+};
+
+/**
+ * @class WriteExtendedShellInteractionType
+ * @brief Handles BFM-file write command !nn_interaction_shell_type
+ * @tparam IngredientsType Ingredients class storing all system information.
+**/
+template <class IngredientsType>
+class WriteExtendedShellInteractionType:public AbstractWrite<IngredientsType>
+{
+public:
+
+  //constructor sets the headerOnly tag, such that the interaction
+  //is written only once at the beginning of the output file.
+    WriteExtendedShellInteractionType(const IngredientsType& i)
+        :AbstractWrite<IngredientsType>(i){this->setHeaderOnly(true);}
+
+    virtual ~WriteExtendedShellInteractionType(){}
 
     virtual void writeStream(std::ostream& strm);
 };
@@ -261,5 +298,58 @@ void WriteExtendedShellInteractionEnergy<IngredientsType>::writeStream(std::ostr
 
 }
 
+
+/**
+ * @brief Executes the reading routine to extract \b !nn_interaction_shell_type.
+ *
+ * @throw <std::runtime_error> fail to read interaction types.
+ **/
+template<class IngredientsType>
+void ReadExtendedShellInteractionType<IngredientsType>::execute()
+{
+    IngredientsType& ingredients=this->getDestination();
+    std::istream& file=this->getInputStream();
+
+    std::string nn_interaction_type;
+
+    //set stream to throw exception on fail
+    file.exceptions(file.exceptions() | std::ifstream::failbit);
+
+    try
+      {
+	file>>nn_interaction_type;
+	std::cout << "nn_interaction_type: " << nn_interaction_type <<std::endl;
+      }
+    catch(std::ifstream::failure e)
+      {
+	std::stringstream errormessage;
+	errormessage<<"ReadExtendedShellInteractionType::execute().\n";
+	errormessage<<"Could not read interaction type from file\n";
+	errormessage<<"Previous error: "<<e.what()<<std::endl;
+	throw std::runtime_error(errormessage.str());
+      }
+
+    //unset exception on fail
+    file.exceptions(file.exceptions() & (~std::ifstream::failbit));
+
+    //now save the interaction tuple just read from the file
+    ingredients.setShellInteractionType(nn_interaction_type);
+
+
+}
+
+/**
+ * @brief Executes the routine to write \b !nn_interaction_shell_type.
+ * @arg stream file stream to write into
+ **/
+template<class IngredientsType>
+void WriteExtendedShellInteractionType<IngredientsType>::writeStream(std::ostream& stream)
+{
+  stream<<"## nearest neighbor interactions shell type: NNShell (Hoffmann) or EShell (Rampf)\n";
+  stream<<"!nn_interaction_shell_type="<<this->getSource().getShellInteractionType()<<"\n";
+
+  stream<<"\n\n";
+
+}
 
 #endif // FEATURE_NN_INTERACTION_READ_WRITE_H
