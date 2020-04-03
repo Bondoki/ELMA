@@ -279,6 +279,15 @@ int main(int argc, char* argv[])
 		double minWinThread = minWin+lengthFirst*(std::pow((1.0+lengthIncrease), tid)-1.0)/lengthIncrease  - overlap*lengthFirst*(std::pow((1.0+lengthIncrease), (tid+1.0))-(1.0+lengthIncrease))/lengthIncrease;
 		double maxWinThread = minWinThread+lengthFirst*std::pow((1.0+lengthIncrease), 1.0*tid);
 
+		// reorder in case the boundaries are used in wrong order
+		if(maxWinThread < minWinThread)
+		{
+			double tmp = minWinThread;
+			minWinThread = maxWinThread;
+			maxWinThread = tmp;
+		}
+
+
 		if(readinBFMinWin == false)
 		{
 			UpdaterReadBfmFile<Ing> UR(infile,myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE);
