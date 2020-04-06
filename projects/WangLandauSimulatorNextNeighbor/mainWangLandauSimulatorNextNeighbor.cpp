@@ -410,7 +410,7 @@ int main(int argc, char* argv[])
 						// check boundary windows
 						// only one decision for both
 						if((energyState[1] < energyWinEnd[0]) && (energyState[0] > energyWinStart[1]) )
-							if((energyState[1] < energyWinEnd[0]) && (energyState[0] > energyWinStart[1]) )
+							if((energyState[0] < energyWinEnd[1]) && (energyState[1] > energyWinStart[0]) )
 						{
 							double diffLnDOS = lnDOSenergyOld[0]+lnDOSenergyOld[1]-lnDOSenergyNew[0]-lnDOSenergyNew[1];
 
