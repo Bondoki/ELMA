@@ -6,6 +6,8 @@ cmake_minimum_required (VERSION 3.1)
 
 add_subdirectory(WangLandauSimulatorNextNeighbor)
 
+add_subdirectory(WangLandauSimulatorNextNeighborRg2)
+
 add_subdirectory(WangLandauSimulatorExtendedShellInteraction)
 
 add_subdirectory(WangLandauSimulatorExtendedShellInteractionRg2)
