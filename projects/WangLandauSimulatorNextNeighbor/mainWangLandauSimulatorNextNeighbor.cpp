@@ -201,7 +201,7 @@ int main(int argc, char* argv[])
 	typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureAttributes, FeatureWangLandauNextNeighbor< FeatureLattice >) Features;
 	//typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureWangLandau, FeatureAttributes) Features;
 
-	typedef ConfigureSystem<VectorInt3,Features, 6> Config;
+	typedef ConfigureSystem<VectorInt3,Features, 8> Config;
 	typedef Ingredients<Config> Ing;
 
 	Ingredients<Config>::molecules_type mol[2];

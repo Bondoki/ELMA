@@ -57,6 +57,8 @@ public:
 
 		  lnDOSmin = 1.01;
 		  numHistoVisits = 1.0;
+
+		  ShellInteractionType = "NNShell";
 	}
 	
 	virtual ~FeatureWangLandauNextNeighbor(){}
@@ -169,6 +171,14 @@ public:
 		this->maxWin = maxWin;
 	}
 
+	std::string getShellInteractionType() const {
+		return ShellInteractionType;
+	}
+
+	void setShellInteractionType(std::string shellType) {
+		ShellInteractionType = shellType;
+	}
+
 private:
 	
 	
@@ -220,6 +230,8 @@ private:
   double lnDOSmin;
   double numHistoVisits;
 
+  //! Interaction Shell Type
+  std::string ShellInteractionType;
 };
 
 
@@ -1148,6 +1160,57 @@ double  FeatureWangLandauNextNeighbor<LatticeClassType>::getInternalEnergyDiffer
 
 }
 
+/**
+ *  * @class ReadShellInteractionType
+ *   * @brief Handles BFM-file read command !nn_interaction_shell_type
+ *    * @tparam IngredientsType Ingredients class storing all system information.
+ *    **/
+template < class IngredientsType>
+class ReadShellInteractionType: public ReadToDestination<IngredientsType>
+{
+	public:
+		ReadShellInteractionType(IngredientsType& i):ReadToDestination<IngredientsType>(i){}
+		virtual ~ReadShellInteractionType(){};
+		virtual void execute();
+};
+
+/**
+ *  * @brief Executes the reading routine to extract \b !nn_interaction_shell_type.
+ *   *
+ *    * @throw <std::runtime_error> fail to read interaction types.
+ *     **/
+template<class IngredientsType>
+void ReadShellInteractionType<IngredientsType>::execute()
+{
+	IngredientsType& ingredients=this->getDestination();
+	std::istream& file=this->getInputStream();
+
+	std::string nn_interaction_type;
+
+	//set stream to throw exception on fail
+	file.exceptions(file.exceptions() | std::ifstream::failbit);
+	
+	try
+	{
+		file>>nn_interaction_type;
+	        std::cout << "nn_interaction_type: " << nn_interaction_type <<std::endl;
+        }
+        catch(std::ifstream::failure e)
+	{
+	       	std::stringstream errormessage;
+		errormessage<<"ReadShellInteractionType::execute().\n";
+	        errormessage<<"Could not read interaction type from file\n";
+		errormessage<<"Previous error: "<<e.what()<<std::endl;
+        	throw std::runtime_error(errormessage.str());
+	}
+	
+	//unset exception on fail
+	file.exceptions(file.exceptions() & (~std::ifstream::failbit));
+	
+	//now save the interaction tuple just read from the file
+	ingredients.setShellInteractionType(nn_interaction_type);
+	
+}
 
 /**
  * @details The function is called by the Ingredients class when an object of type Ingredients
@@ -1166,6 +1229,7 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::exportRead(FileImport< Ing
 {
   typedef FeatureWangLandauNextNeighbor<LatticeClassType> my_type;
   fileReader.registerRead("!nn_interaction",new ReadNNInteraction<my_type>(*this));
+  fileReader.registerRead("!nn_interaction_shell_type",new ReadShellInteractionType<my_type>(*this));
 }
 
 
@@ -1206,6 +1270,38 @@ void WriteNNInteractionEnergy<IngredientsType>::writeStream(std::ostream& stream
 
 }
 
+/**
+ *  @class WriteShellInteractionType
+ *  @brief Handles BFM-file write command !nn_interaction_shell_type
+ *  @tparam IngredientsType Ingredients class storing all system information.
+ **/
+template <class IngredientsType>
+class WriteShellInteractionType:public AbstractWrite<IngredientsType>
+{
+	public:
+
+		  //constructor sets the headerOnly tag, such that the interaction
+		  //is written only once at the beginning of the output file.
+		  WriteShellInteractionType(const IngredientsType& i):AbstractWrite<IngredientsType>(i){this->setHeaderOnly(true);}
+		  
+		  virtual ~WriteShellInteractionType(){}
+		  
+		  virtual void writeStream(std::ostream& strm);
+};
+
+/**
+ *  * @brief Executes the routine to write \b !nn_interaction_shell_type.
+ *   * @arg stream file stream to write into
+ *    **/
+template<class IngredientsType>
+void WriteShellInteractionType<IngredientsType>::writeStream(std::ostream& stream)
+{
+	  stream<<"## nearest neighbor interactions shell type: NNShell (Hoffmann) or EShell (Rampf)\n";
+	  stream<<"!nn_interaction_shell_type="<<this->getSource().getShellInteractionType()<<"\n";
+
+	  stream<<"\n\n";
+
+}
 
 /**
  * The function is called by the Ingredients class when an object of type Ingredients
@@ -1224,6 +1320,7 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::exportWrite(AnalyzerWriteB
   typedef FeatureWangLandauNextNeighbor<LatticeClassType> my_type;
   fileWriter.registerWrite("!nn_interaction",new WriteNNInteraction<my_type>(*this));
   fileWriter.registerWrite("#!energy",new WriteNNInteractionEnergy<IngredientsType>(fileWriter.getIngredients_()));
+  fileWriter.registerWrite("!nn_interaction_shell_type",new WriteShellInteractionType<my_type>(*this));
 }
 
 
