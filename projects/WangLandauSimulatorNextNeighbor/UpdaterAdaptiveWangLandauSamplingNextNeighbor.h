@@ -499,6 +499,8 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 		std::cout<<"Simulation approach convergence.. " << std::endl;
 		return true;
 	}
+	
+	return true;
 }
 
 

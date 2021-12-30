@@ -264,6 +264,8 @@ int main(int argc, char* argv[])
 				if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
 					myIngredients.modifyHGLnDOS().addValue(in.getHGLnDOS().getCenterOfBin(n), in.getHGLnDOS().getVectorValues()[n].ReturnM1());
 			}
+			
+			std::cout << "ReadIn of HGLnDOS done.        " << std::endl;
 		}
 
 		// run the simulation and gather the information
@@ -290,6 +292,8 @@ int main(int argc, char* argv[])
 
 		if(readinBFMinWin == false)
 		{
+            std::cout << "Thread " << tid << " with window [ " <<   minWinThread << " ; " << maxWinThread << " ] : read-in file" << std::endl;
+            
 			UpdaterReadBfmFile<Ing> UR(infile,myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE);
 			UR.initialize();
 			UR.execute();
@@ -297,6 +301,7 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
+            std::cout << "Thread " << tid << " with window [ " <<   minWinThread << " ; " << maxWinThread << " ] : read-in idx-file" << std::endl;
 			std::stringstream ssprefixWindowBFM;
 			ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << tid;
 

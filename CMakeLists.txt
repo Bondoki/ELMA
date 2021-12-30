@@ -29,11 +29,11 @@ include_directories (${LEMONADE_INCLUDE_DIR})
 link_directories (${LEMONADE_LIBRARY_DIR})
 
 #define possible flags
-SET (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -msse2 -mssse3 -fexpensive-optimizations -std=c++11")
-SET (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -msse2 -mssse3 -fexpensive-optimizations -std=c++11")
+SET (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -msse2 -mssse3 -fexpensive-optimizations -std=c++11 -Wno-error=narrowing")
+SET (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -msse2 -mssse3 -fexpensive-optimizations -std=c++11 -Wno-error=narrowing")
 
-SET (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -Wall -DDEBUG ")
-SET (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -Wall -DDEBUG ")
+SET (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -Wall -DDEBUG -Wno-error=narrowing")
+SET (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -Wall -DDEBUG -Wno-error=narrowing")
 # SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_DEBUG} -O2 -std=c++11")
 # SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS_DEBUG} -O2 ")
 
