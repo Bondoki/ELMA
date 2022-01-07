@@ -4,7 +4,7 @@
 
 #include <cstring>
 #include <sstream>      // std::stringstream, std::stringbuf
-
+#include <cmath>
 
 #include <LeMonADE/utility/RandomNumberGenerators.h>
 #include <LeMonADE/core/ConfigureSystem.h>
@@ -39,6 +39,8 @@ int main(int argc, char* argv[])
 		double max_histogram = +100.0;
 		uint32_t bins_histogram = 200;
 		double modFactor = 1.01;
+		double modFactorTheshold = std::exp(std::pow(10,-8)); // 1.00000001000000005
+		// modFactor(iteration)=modFactor^(0.5^iteration)
 
 		double minWin = -100.0;
 		double maxWin = +100.0;
@@ -79,6 +81,10 @@ int main(int argc, char* argv[])
 		| clara::Opt(  modFactor, "modification factor (=1.01)" )
 		["-f"]["--mod-factor"]
 				("initial modification factor for update DOS (=1.01)")
+				.required()
+		| clara::Opt(  modFactorTheshold, "termination threshold for modification factor (std::exp(std::pow(10,-8))=1.00000001)" )
+		["-x"]["--threshold-mod-factor"]
+				("termination threshold for modification factor to finalize DOS (=1.00000001)")
 				.required()
 		| clara::Opt( [&max_mcs](uint64_t const m)
 				{
@@ -186,6 +192,7 @@ int main(int argc, char* argv[])
 					<< "max_histogram: " << max_histogram << std::endl
 					<< "bins_histogram: " << bins_histogram << std::endl
 					<< "modFactor: " << modFactor << std::endl
+					<< "threshold modFactor: " << modFactorTheshold << std::endl
 					<< "min_win: "	<< minWin << std::endl
 					<< "max_win: " 	<< maxWin << std::endl
 					<< "HGLnDOS:" << HGLnDOSfile << std::endl
@@ -315,7 +322,7 @@ int main(int argc, char* argv[])
 
 		UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc> UWL(myIngredients,
 						save_interval,
-						bias_update_interval, flatness, modFactor, max_mcs, minWinThread, maxWinThread, tid);
+						bias_update_interval, flatness, modFactor, max_mcs, minWinThread, maxWinThread, tid, modFactorTheshold);
 
 
 

@@ -95,6 +95,7 @@ public:
 	,double minWindow = -100.0
 	,double maxWindow = +100.0
 	,int numWindow=0
+	,double _modificationFactorThreshold=std::exp(std::pow(10,-8))
 	);
 	
 	/**
@@ -329,6 +330,8 @@ private:
 	int numberIdxWindow;
 
 	double flatness;
+
+	double modificationFactorThreshold;
 };
 
 
@@ -348,7 +351,8 @@ UpdaterAdaptiveWangLandauSamplingNextNeighbor(IngredientsType& ing,
 				uint64_t maxAge,
 				double _minWindow,
 				double _maxWindow,
-				int numberWindow
+				int numberWindow,
+				double _modificationFactorThreshold
 				)
 ://ingredients(ing),
 nsteps(steps)
@@ -372,6 +376,7 @@ nsteps(steps)
 ,iteration(0)
 ,simulationConverged(false)
 ,numberIdxWindow(numberWindow)
+,modificationFactorThreshold(_modificationFactorThreshold)
 ,BaseClass(ing)
 {
 	nStepsBeforeHistogramUpdate=1000;
@@ -489,7 +494,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 	std::cout<<"mcs "<<ingredients.getMolecules().getAge() << " with energy " << ingredients.getInternalEnergyCurrentConfiguration(ingredients) <<std::endl;
 
 
-	if(ingredients.getModificationFactor() < std::exp(std::pow(10,-8)) )
+	if(ingredients.getModificationFactor() < modificationFactorThreshold )
 	{
 		std::cout<<"Simulation converged! " << std::endl;
 		return false;
