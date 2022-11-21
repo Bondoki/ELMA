@@ -54,7 +54,7 @@ int main(int argc, char* argv[])
 	
 	// FeatureExcludedVolume<> is equivalent to FeatureExcludedVolume<FeatureLattice<bool> >
 	//typedef LOKI_TYPELIST_4(FeatureMoleculesIO, FeatureFixedMonomers,FeatureAttributes,FeatureExcludedVolumeSc<>) Features;
-	typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureAttributes, FeatureNNInteractionSc< FeatureLattice >) Features;
+	typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureAttributes< >, FeatureNNInteractionSc< FeatureLattice >) Features;
 
 	typedef ConfigureSystem<VectorInt3,Features, 6> Config;
 	typedef Ingredients<Config> Ing;

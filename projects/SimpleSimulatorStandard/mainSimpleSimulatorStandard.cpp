@@ -96,7 +96,7 @@ int main(int argc, char* argv[])
 	rng.seedAll();
 	
 	// FeatureExcludedVolume<> is equivalent to FeatureExcludedVolume<FeatureLattice<bool> >
-	typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureAttributes,FeatureExcludedVolumeSc<>) Features;
+	typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureAttributes< >,FeatureExcludedVolumeSc<>) Features;
 	
 	typedef ConfigureSystem<VectorInt3,Features, 6> Config;
 	typedef Ingredients<Config> Ing;

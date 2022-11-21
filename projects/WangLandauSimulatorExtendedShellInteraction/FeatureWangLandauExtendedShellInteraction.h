@@ -97,7 +97,7 @@ public:
 	//FeatureAttributes needs to be in front, because when a monomer is added to the system
 	//by a MoveAddMonomerSc, its attribute has to be set before it is written to the lattice.
 	typedef LOKI_TYPELIST_2(
-			FeatureAttributes,
+			FeatureAttributes< >,
 			FeatureExcludedVolumeSingleNode<FeatureLatticeType<lattice_value_type> >)
 			required_features_front;
 

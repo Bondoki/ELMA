@@ -199,7 +199,7 @@ int main(int argc, char* argv[])
 	//typedef LOKI_TYPELIST_4(FeatureMoleculesIO, FeatureFixedMonomers,FeatureAttributes,FeatureExcludedVolumeSc<>) Features;
 	//typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureAttributes, FeatureNNInteractionSc< FeatureLattice >) Features;
 	//typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureAttributes, FeatureWangLandauNextNeighbor< FeatureLattice >) Features;
-	typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureAttributes, FeatureWangLandauExtendedShellInteraction< FeatureLattice >) Features;
+	typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureAttributes< >, FeatureWangLandauExtendedShellInteraction< FeatureLattice >) Features;
 
 	//typedef LOKI_TYPELIST_3(FeatureMoleculesIO, FeatureWangLandau, FeatureAttributes) Features;
 

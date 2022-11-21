@@ -34,7 +34,7 @@ public:
 	typedef uint8_t lattice_value_type;
 
 	typedef LOKI_TYPELIST_2(
-	      FeatureAttributes,
+	      FeatureAttributes< >,
 	      FeatureExcludedVolumeSc<FeatureLatticeType<lattice_value_type> >)
 	    required_features_front;
 		
