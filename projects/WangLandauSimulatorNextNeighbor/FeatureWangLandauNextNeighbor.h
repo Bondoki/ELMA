@@ -390,20 +390,39 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::applyMove(IngredientsType&
 	}
 	else
 	{
-
-		HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 		
 		// according to Wüst and Landau http://dx.doi.org/10.1063/1.4742969
 		// is more effiencent so reset the histogram if a new energy entry is found
 		if(HG_VisitsEnergyStates.isVisited(Energy)==false)
 		{
+			// find first visited
+			double eln = 0.0; // arbitrary value
+			for (size_t n=0; n < HG_LnDOS.getNBins(); n++) {
+				if (HG_VisitsEnergyStates.isVisited(HG_LnDOS.getCenterOfBin(n)))
+				{
+					eln = HG_LnDOS.getFirstMomentInBin(n);
+					break;
+				}
+			}
+			//find minimum
+			for (size_t n=1; n < HG_LnDOS.getNBins(); n++) {
+				if (HG_LnDOS.getFirstMomentInBin(n) < eln && HG_VisitsEnergyStates.isVisited(HG_LnDOS.getCenterOfBin(n)))
+				{
+					eln = HG_LnDOS.getFirstMomentInBin(n);
+				}
+			}
+			HG_LnDOS.resetValue(Energy,eln);
+			
 			HG_VisitsEnergyStates.clearVector();
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
 			HG_VisitsEnergyStates.setVisited(Energy);
+			
+			
 		}
 		else
 		{
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
+			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 		}
 		
 		
@@ -498,12 +517,29 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::rejectMove(IngredientsType
 	}
 	else
 	{
-		HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 		
 		// according to Wüst and Landau http://dx.doi.org/10.1063/1.4742969
 		// is more effiencent so reset the histogram if a new energy entry is found
 		if(HG_VisitsEnergyStates.isVisited(Energy)==false)
 		{
+			// find first visited
+			double eln = 0.0; // arbitrary value
+			for (size_t n=0; n < HG_LnDOS.getNBins(); n++) {
+				if (HG_VisitsEnergyStates.isVisited(HG_LnDOS.getCenterOfBin(n)))
+				{
+					eln = HG_LnDOS.getFirstMomentInBin(n);
+					break;
+				}
+			}
+			//find minimum
+			for (size_t n=1; n < HG_LnDOS.getNBins(); n++) {
+				if (HG_LnDOS.getFirstMomentInBin(n) < eln && HG_VisitsEnergyStates.isVisited(HG_LnDOS.getCenterOfBin(n)))
+				{
+					eln = HG_LnDOS.getFirstMomentInBin(n);
+				}
+			}
+			HG_LnDOS.resetValue(Energy,eln);
+			
 			HG_VisitsEnergyStates.clearVector();
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
 			HG_VisitsEnergyStates.setVisited(Energy);
@@ -511,6 +547,7 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::rejectMove(IngredientsType
 		else
 		{
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
+			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 		}
 		
 		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
