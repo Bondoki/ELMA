@@ -36,6 +36,7 @@ public:
 			binsize=0.0;
 		
 		histogram.resize(nbins,0.0);
+		histogramIsVisited.resize(nbins,false);
 		
 	}
 
@@ -57,7 +58,8 @@ public:
 			binsize=0.0;
 		
 		histogram.resize(nbins,0.0);
-		
+		histogramIsVisited.clear();
+		histogramIsVisited.resize(nbins,false);
 	}
 	
 	size_t getBinNo(double x) const
@@ -90,6 +92,17 @@ public:
 	{
 		return histogram[bin]/valueSum;
 	}
+	
+	bool isVisited(double x) const
+	{
+		return histogramIsVisited[getBinNo(x)];
+	}
+	
+	void setVisited(double x)
+	{
+		histogramIsVisited[getBinNo(x)]=true;
+	}
+	
 	
 	double getCenterOfBin(int bin) const
 	{
@@ -161,6 +174,11 @@ public:
 		return positions;
 	}
 	
+	void clearVector()
+	{
+		histogram.clear();
+		histogram.resize(nBins,0.0);
+	}
 	
 private:
 
@@ -172,6 +190,7 @@ private:
 	double maxVal; // obere Grenze
 	double binsize; //Intervalleinteilung
 	std::vector<double> histogram;
+	std::vector<bool> histogramIsVisited;
 };
 
 #endif //Histogram1D.h

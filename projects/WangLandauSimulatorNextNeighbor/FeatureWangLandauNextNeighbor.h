@@ -392,7 +392,22 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::applyMove(IngredientsType&
 	{
 
 		HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
-		HG_VisitsEnergyStates.addValue(Energy, 1.0);
+		
+		// according to Wüst and Landau http://dx.doi.org/10.1063/1.4742969
+		// is more effiencent so reset the histogram if a new energy entry is found
+		if(HG_VisitsEnergyStates.isVisited(Energy)==false)
+		{
+			HG_VisitsEnergyStates.clearVector();
+			HG_VisitsEnergyStates.addValue(Energy, 1.0);
+			HG_VisitsEnergyStates.setVisited(Energy);
+		}
+		else
+		{
+			HG_VisitsEnergyStates.addValue(Energy, 1.0);
+		}
+		
+		
+		
 		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 
 	}
@@ -484,7 +499,20 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::rejectMove(IngredientsType
 	else
 	{
 		HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
-		HG_VisitsEnergyStates.addValue(Energy, 1.0);
+		
+		// according to Wüst and Landau http://dx.doi.org/10.1063/1.4742969
+		// is more effiencent so reset the histogram if a new energy entry is found
+		if(HG_VisitsEnergyStates.isVisited(Energy)==false)
+		{
+			HG_VisitsEnergyStates.clearVector();
+			HG_VisitsEnergyStates.addValue(Energy, 1.0);
+			HG_VisitsEnergyStates.setVisited(Energy);
+		}
+		else
+		{
+			HG_VisitsEnergyStates.addValue(Energy, 1.0);
+		}
+		
 		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 
 	}
