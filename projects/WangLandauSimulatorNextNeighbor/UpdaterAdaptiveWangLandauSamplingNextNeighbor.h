@@ -138,7 +138,7 @@ public:
 		//updateModificationFactor();
 
 		std::stringstream ssprefixWindowBFM;
-		ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
+		ssprefixWindowBFM << "_idxWin" << std::setw(4) << std::setfill('0') << numberIdxWindow;
 		writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + "_final.bfm"));
 	};
 	
@@ -205,7 +205,7 @@ public:
 		}
 
 		std::stringstream ssprefixWindowBFM;
-		ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
+		ssprefixWindowBFM << "_idxWin" << std::setw(4) << std::setfill('0') << numberIdxWindow;
 		writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
 
 
@@ -218,6 +218,12 @@ public:
 	void unsetFirstConverged() {iterationfirstconverged=false;};
 
 	void checkForFirstWindowAppearance();
+	
+	int getIteration() {return iteration;};
+	
+	void setReachedFinalState() {reachedFinalState = true;};
+	
+	bool getReachedFinalState() {return reachedFinalState;};
 
 private:
 	using BaseClass::ingredients;
@@ -332,6 +338,8 @@ private:
 	double flatness;
 
 	double modificationFactorThreshold;
+	
+	bool reachedFinalState;
 };
 
 
@@ -394,9 +402,10 @@ nsteps(steps)
 	iterationfirstconverged = false;
 
 	std::stringstream ssprefixWindow;
-	ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << numberWindow;
+	ssprefixWindow << "_idxWin" << std::setw(4) << std::setfill('0') << numberWindow;
 	prefixWindow = ssprefixWindow.str();
 
+	reachedFinalState = false;
 }
  
  
@@ -534,12 +543,12 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ch
 				ingredients.setWindowState(true, minWindow, maxWindow);
 
 				std::stringstream ssprefixWindow;
-				ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow << "_minWin" << minWindow << "_maxWin" <<  maxWindow;
+				ssprefixWindow << "_idxWin" << std::setw(4) << std::setfill('0') << numberIdxWindow << "_minWin" << minWindow << "_maxWin" <<  maxWindow;
 
 				prefixWindow = ssprefixWindow.str();
 
 				std::stringstream ssprefixWindowBFM;
-				ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
+				ssprefixWindowBFM << "_idxWin" << std::setw(4) << std::setfill('0') << numberIdxWindow;
 				writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
 
 				//dump histograms in the start of iteration procedure
@@ -615,6 +624,21 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::hi
 
 	std::vector<double> currentHistogramState=ingredients.getVisitsEnergyStates().getVectorValues();//histogram.getVectorValues();
 
+	// check if we have an entry for every element within the window:
+	// avoiding 'artifical' jumps in LnDOS do to inpropriate sampling
+	for(size_t n=0;n<currentHistogramState.size();n++)
+	{
+		if( (ingredients.getVisitsEnergyStates().getCenterOfBin(n) >= ingredients.getMinWin()) && (ingredients.getVisitsEnergyStates().getCenterOfBin(n) <= ingredients.getMaxWin()) )
+		{
+			if(currentHistogramState.at(n) == 0.0)
+			{
+				return false;
+			}
+		}
+	}
+	
+	// otherwise calculate average flatness
+	
 	double mean= 0.0;
 	int entries = 0;
 	//double min =currentHistogramState.at(n)
