@@ -1039,6 +1039,9 @@ MPI_Barrier(MPI_COMM_WORLD);
 
 	}
 	catch(std::exception& err){std::cerr<<err.what();}
+	
+	MPI_Finalize(); // Finish up MPI
+	
 	return 0;
   
 }
