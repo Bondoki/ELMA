@@ -665,7 +665,8 @@ MPI_Barrier(MPI_COMM_WORLD);
 							// calculate combined exchange probability and roll the dice
 							if ((myfrac>0.0)&&(otherfrac>0.0))
 							{
-								randx=(1.0*rng.r250_drand()/(RAND_MAX+1.0));
+								//randx=(1.0*rng.r250_drand()/(RAND_MAX+1.0));
+								randx=rng.r250_drand();
 								wk=myfrac*otherfrac;
 								if (randx<wk) change=1;
 							}
