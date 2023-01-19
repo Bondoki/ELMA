@@ -48,6 +48,12 @@ int main(int argc, char* argv[])
 		double modFactor = 1.01;
 		double modFactorTheshold = std::exp(std::pow(10,-8)); // 1.00000001000000005
 		// modFactor(iteration)=modFactor^(0.5^iteration)
+		
+		//! threshold criterion for using 1/t-refinement
+		// Note: if modFactorThesholdUsing1t < modFactorTheshold
+		// then standard WL-sampling with power-law f->f^0.5 is applied
+		// else with algorithm run until modFactorTheshold < modFactorThesholdUsing1t is achieved
+		double modFactorThesholdUsing1t = 0.0; 
 
 		double minWin = -100.0;
 		double maxWin = +100.0;
@@ -176,6 +182,10 @@ int main(int argc, char* argv[])
 			["--walker"]
 			("every energy window has this number of walker (=2)")
 			.required()
+		| clara::Opt(  modFactorThesholdUsing1t, "minimum modification factor needed to run 1/t algorithm (=0.0)" )
+			["--threshold-mod-factor-1t"]
+			("If the threshold is lower than then the modFactorTheshold then standard WL-sampling applies.")
+			.required()
 		| clara::Help( showHelp );
 
 		auto result = parser.parse( clara::Args( argc, argv ) );
@@ -211,6 +221,7 @@ int main(int argc, char* argv[])
 					<< "HGLnDOS:" << HGLnDOSfile << std::endl
 					<< "filedump:" << filedump << std::endl
 					<< "walker per energy window: " << numWalkerPerWindow << std::endl
+					<< "modFactorThesholdUsing1t: " << modFactorThesholdUsing1t << std::endl
 					;
 		}
 	
@@ -464,7 +475,7 @@ int main(int argc, char* argv[])
 
 		UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc> UWL(myIngredients,
 						save_interval,
-						bias_update_interval, flatness, modFactor, max_mcs, minWinThread, maxWinThread, tid, modFactorTheshold);
+						bias_update_interval, flatness, modFactor, max_mcs, minWinThread, maxWinThread, tid, modFactorTheshold, modFactorThesholdUsing1t);
 
 
 
@@ -484,6 +495,8 @@ int main(int argc, char* argv[])
 			UWL.execute();
 		} while(!myIngredients.isEnergyInWindow());
 
+		myIngredients.modifyMolecules().setAge(0); // reset the clock within the file
+		
 		 MPI_Barrier(MPI_COMM_WORLD);
 		 
 		 
@@ -543,10 +556,8 @@ MPI_Barrier(MPI_COMM_WORLD);
 					//energyWinEnd[0]= myIngredients.getMaxWin();
 					//lnDOSenergyOld[0] = myIngredients.getHGLnDOS().getCountAt(energyState[0]);
 					
-					int i_new; // histogram index of my configuration
-					int Ecur; // current energy
-					double E_new;
-					double E_old;
+					double E_new; // energy by other process
+					double E_old; // current energy
 					
 					
 					// frac refers to local exchange probability
@@ -628,11 +639,11 @@ MPI_Barrier(MPI_COMM_WORLD);
 						
 						
 						E_new = myIngredients.getInternalEnergyCurrentConfiguration(myIngredients);
-						i_new= myIngredients.getHGLnDOS().getBinNo(E_new);
+						//i_new= myIngredients.getHGLnDOS().getBinNo(E_new);
 						
 						
 						// get histogram index from my swap partner
-						MPI_Sendrecv_replace(&i_new,1,MPI_INT,swap_partner,1,swap_partner,1,mpi_local_comm[comm_id],&status);
+						//MPI_Sendrecv_replace(&i_new,1,MPI_INT,swap_partner,1,swap_partner,1,mpi_local_comm[comm_id],&status);
 						MPI_Sendrecv_replace(&E_new,1,MPI_DOUBLE,swap_partner,1,swap_partner,1,mpi_local_comm[comm_id],&status);
 						
 						//if (Ecur+(2*numberspins)!=index_akt)
@@ -743,25 +754,45 @@ MPI_Barrier(MPI_COMM_WORLD);
 				std::cout << "rsync all threads after RE" << myid << std::endl;
 				MPI_Barrier(MPI_COMM_WORLD);
 				
-				// checking for flatness and convergence
-				//int flat;               // 0 - histogram not flat; 1 - flat
-				flat = UWL.histogramConverged() ? 1 : 0;
+				flat = 0;
 				
-				// output if reached flatness
-				if(UWL.histogramConverged() && UWL.isFirstConverged())
+				// only merging of histograms if NOT using 1/t method
+				if(myIngredients.using1tMethod() == false)
 				{
-					UWL.outputConvergedIteration();
-
-					UWL.unsetFirstConverged();
+					// checking for flatness and convergence
+					//int flat;               // 0 - histogram not flat; 1 - flat
+					flat = UWL.histogramConverged() ? 1 : 0;
 					
+					// output if reached flatness
+					if(UWL.histogramConverged() && UWL.isFirstConverged())
+					{
+						UWL.outputConvergedIteration();
+						
+						UWL.unsetFirstConverged();
+						
+						
+						//check if this was the final run for the energy windows
+						// e.g. recent modFactor < modFactorTheshold
+						
+						// write the final lnDOS to file
+						// NOTE: other iteration (files) after this one are not useful
+						// they are only keep alive for replica exchange
+						if(std::pow(myIngredients.getModificationFactor(myIngredients), 0.5) < modFactorTheshold)
+						{
+							// this enures that only once the final state has output
+							if(UWL.getReachedFinalState() == false)
+							{
+								UWL.cleanup();
+								UWL.setReachedFinalState();
+							}
+							
+						}
+					}
 					
-					//check if this was the final run for the energy windows
-					// e.g. recent modFactor < modFactorTheshold
-					
-					// write the final lnDOS to file
-					// NOTE: other iteration (files) after this one are not useful
-					// they are only keep alive for replica exchange
-					if(std::pow(myIngredients.getModificationFactor(), 0.5) < modFactorTheshold)
+				}
+				else // otherwise check if we already reached the 1/t-threshold
+				{
+					if(myIngredients.getModificationFactor(myIngredients) <= modFactorTheshold)
 					{
 						// this enures that only once the final state has output
 						if(UWL.getReachedFinalState() == false)
@@ -872,6 +903,8 @@ MPI_Barrier(MPI_COMM_WORLD);
 								
 								//tmp_lnDOS[n] = myIngredients.getHGLnDOS().getVectorValues()[n].ReturnM1();
 								//if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+								
+								// NOTE: as a result there are NOW entries for ALL energies (ALSO OUTSIDE THE ENERGY WINDOW)
 								myIngredients.modifyHGLnDOS().addValue(myIngredients.getHGLnDOS().getCenterOfBin(n), tmp_lnDOS_buf[n]);
 							}
 						}
@@ -886,7 +919,9 @@ MPI_Barrier(MPI_COMM_WORLD);
 					
 					{
 						stdoutlog=fopen(stdoutlogname,"a");
-						fprintf(stdoutlog,"Proc %3i, NextIterStart.\n",myid);
+						fprintf(stdoutlog,"Proc %3i, NextIterStart with %s.\n",myid, myIngredients.using1tMethod() ? "1/t" : "standard f^0.5" );
+						fprintf(stdoutlog,"Proc %3i: tryleft: %i, exchangeleft %i (Akzeptanzleft:%.2lf) <--> tryright: %i, exchangeright %i (Akzeptanzright:%.2lf)\n",myid,tryleft,exchangeleft,(double)exchangeleft/(double)tryleft,tryright,exchangeright,(double)exchangeright/(double)tryright);
+						
 						fclose(stdoutlog);
 						//MPI_Abort(MPI_COMM_WORLD,1);
 					}
@@ -894,7 +929,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 				}
 					
 					// get the recent modification factor
-					lnf_recent = myIngredients.getModificationFactor();
+					lnf_recent = myIngredients.getModificationFactor(myIngredients);
 					
 					// communicate the lagest modificator to ALL process
 					MPI_Allreduce(&lnf_recent,&lnf_slowest,1,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD);

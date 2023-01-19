@@ -59,6 +59,10 @@ public:
 		  numHistoVisits = 1.0;
 
 		  ShellInteractionType = "NNShell";
+		  
+		  using_1t = false;
+		  numBinsInWindow=0;
+		  modificationFactorThesholdUsing1t=0.0;
 	}
 	
 	virtual ~FeatureWangLandauNextNeighbor(){}
@@ -113,15 +117,52 @@ public:
 	Histogram1D& modifyTotalVisitsEnergyStates() {return HG_TotalVisitsEnergyStates;}
 	const Histogram1D& getTotalVisitsEnergyStates() const {return HG_TotalVisitsEnergyStates;}
 
-	double getModificationFactor() const {return modificationFactor;}
+	template<class IngredientsType>
+	double getModificationFactor(const IngredientsType& ingredients) const {
+		
+		if(using_1t == false)
+			return modificationFactor;
+		else
+			return std::exp((numBinsInWindow*(1.0/ingredients.getMolecules().getAge())));
+		
+	}
 
-	void setModificationFactor(double modificationFactor) {
+	template<class IngredientsType>
+	void setModificationFactor(IngredientsType& ingredients, double modificationFactor) {
 		
 		std::cout << "Modification Factor f=" << modificationFactor << std::endl;
 		this->modificationFactor = modificationFactor;
 
+		if(modificationFactor < modificationFactorThesholdUsing1t) // 1/t-rule after 1E5MCS 
+		{
+			using_1t=true;
+			
+			//numBinsInWindow = 0;
+			
+			numBinsInWindow = int((maxWin-minWin)/HG_LnDOS.getBinwidth())+1;
+			
+			// mod factor = exp([Emax-Emin]/tsim)
+			
+			// reset the 'counter' aka simulation time to adjust for the mod factor
+			ingredients.modifyMolecules().setAge(int ((1.0*numBinsInWindow)/std::log(modificationFactorThesholdUsing1t)));
+			
+			//if( ingredients.getMolecules().getAge() < (1.0*numBinsInWindow)/std::log(1.000002) )
+			
+			//for (size_t n=0; n < HG_LnDOS.getNBins(); n++)
+			//{
+				//if(HG_LnDOS.getVectorValues()[n].ReturnN() != 0)
+				//{
+					//numBinsInWindow++;
+				//}
+			//}
+		}
 	}
+	
+	bool using1tMethod() {return using_1t;};
 
+	void setModificationFactorUsing1t(double _modificationFactorThesholdUsing1t) {
+		modificationFactorThesholdUsing1t = _modificationFactorThesholdUsing1t;
+	}
 
 	template<class IngredientsType>
 	double getInternalEnergy(const IngredientsType& ingredients,size_t index=0,VectorInt3 direction=VectorInt3(0,0,0)) const;
@@ -232,6 +273,10 @@ private:
 
   //! Interaction Shell Type
   std::string ShellInteractionType;
+  
+  bool using_1t;
+  int numBinsInWindow;
+  double modificationFactorThesholdUsing1t;
 };
 
 
@@ -422,7 +467,11 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::applyMove(IngredientsType&
 		else
 		{
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
-			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+			
+			if(using_1t == false)
+				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+			else
+				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+(numBinsInWindow*(1.0/ingredients.getMolecules().getAge())));
 		}
 		
 		
@@ -547,7 +596,12 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::rejectMove(IngredientsType
 		else
 		{
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
-			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+			
+			if(using_1t == false)
+				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+			else
+				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+(numBinsInWindow*(1.0/ingredients.getMolecules().getAge())));
+			//HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 		}
 		
 		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);

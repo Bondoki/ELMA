@@ -96,6 +96,7 @@ public:
 	,double maxWindow = +100.0
 	,int numWindow=0
 	,double _modificationFactorThreshold=std::exp(std::pow(10,-8))
+	,double _modificationFactorThesholdUsing1t=0.0
 	);
 	
 	/**
@@ -360,7 +361,8 @@ UpdaterAdaptiveWangLandauSamplingNextNeighbor(IngredientsType& ing,
 				double _minWindow,
 				double _maxWindow,
 				int numberWindow,
-				double _modificationFactorThreshold
+				double _modificationFactorThreshold,
+				double _modificationFactorThesholdUsing1t
 				)
 ://ingredients(ing),
 nsteps(steps)
@@ -395,7 +397,7 @@ nsteps(steps)
 	varianceSeries.resize(0);
 	meanSeries.resize(0);
 	flatnessSeries.resize(0);
-	ingredients.setModificationFactor(initialModificationFactor);
+	ingredients.setModificationFactor(ingredients, initialModificationFactor);
 	ingredients.setWindowState(false, ingredients.getVisitsEnergyStates().getMinCoordinate(), ingredients.getVisitsEnergyStates().getMaxCoordinate());
 
 	iterationconverged=false;
@@ -406,6 +408,8 @@ nsteps(steps)
 	prefixWindow = ssprefixWindow.str();
 
 	reachedFinalState = false;
+	
+	ingredients.setModificationFactorUsing1t(_modificationFactorThesholdUsing1t);
 }
  
  
@@ -503,7 +507,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 	std::cout<<"mcs "<<ingredients.getMolecules().getAge() << " with energy " << ingredients.getInternalEnergyCurrentConfiguration(ingredients) <<std::endl;
 
 
-	if(ingredients.getModificationFactor() < modificationFactorThreshold )
+	if(ingredients.getModificationFactor(ingredients) < modificationFactorThreshold )
 	{
 		std::cout<<"Simulation converged! " << std::endl;
 		return false;
@@ -582,16 +586,21 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::sh
 	std::cout << "Shift HgLnDOS ";
 
 	double eln = ingredients.getHGLnDOS().getFirstMomentInBin(0);
-	size_t bin = 0;
-			for (size_t n=1; n < ingredients.getHGLnDOS().getNBins(); n++) {
-				if ((ingredients.getHGLnDOS().getFirstMomentInBin(n) < eln && ingredients.getHGLnDOS().getFirstMomentInBin(n) != 0 ) || eln == 0)
-				{
-					eln = ingredients.getHGLnDOS().getFirstMomentInBin(n);
-					bin = n;
-				}
-			}
-
-	std::cout << " by " << eln << " (" << ingredients.getHGLnDOS().getFirstMomentInBin(bin) << ") at bin " << bin << " with energy "  << ingredients.getHGLnDOS().getCenterOfBin(bin) << std::endl;
+	//size_t bin = 0;
+			//for (size_t n=1; n < ingredients.getHGLnDOS().getNBins(); n++) {
+				//if ((ingredients.getHGLnDOS().getFirstMomentInBin(n) < eln && ingredients.getHGLnDOS().getFirstMomentInBin(n) != 0 ) || eln == 0)
+				//{
+					//eln = ingredients.getHGLnDOS().getFirstMomentInBin(n);
+					//bin = n;
+				//}
+			//}
+	//std::cout << " by " << eln << " (" << ingredients.getHGLnDOS().getFirstMomentInBin(bin) << ") at bin " << bin << " with energy "  << ingredients.getHGLnDOS().getCenterOfBin(bin) << std::endl;
+	
+	// this is an arbitrary shift to avoid extrem high numbers
+	// the shift value can be set e.g. minimal energy entry
+	eln = ingredients.getHGLnDOS().getCountAt(ingredients.getMinWin()+ingredients.getHGLnDOS().getBinwidth());
+	std::cout << " by " << eln << " with energy "  << (ingredients.getMinWin()+ingredients.getHGLnDOS().getBinwidth()) << std::endl;
+	
 
 	for (size_t n=0; n < ingredients.getHGLnDOS().getNBins(); n++)
 	{
@@ -893,9 +902,9 @@ double UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::
 template<class IngredientsType, class MoveType>
 void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::updateModificationFactor()
 {
-	double newModificationFactor = std::pow(ingredients.getModificationFactor(), 0.5);
+	double newModificationFactor = std::pow(ingredients.getModificationFactor(ingredients), 0.5);
 	//double newModificationFactor = std::exp(nsteps*1.0/ingredients.modifyMolecules().getAge());
-	ingredients.setModificationFactor(newModificationFactor);
+	ingredients.setModificationFactor(ingredients, newModificationFactor);
 
 	std::cout << "new modification factor :" << std::setprecision(15) << newModificationFactor << std::endl;
 }
@@ -924,7 +933,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 	file << "# " << ingredients.getName() << std::endl;
 	file << "# MCS: " << std::setprecision(15) << ingredients.getMolecules().getAge() << std::endl;
 	file << "# f0: " << std::setprecision(15) << initialModificationFactor << std::endl;
-	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor() << std::endl;
+	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor(ingredients) << (ingredients.using1tMethod() ? " with 1/t sampling" : "") << std::endl;
 	file << "# Iteration" << iteration << std::endl;
 	file << "# histogram: [" << ingredients.getVisitsEnergyStates().getMinCoordinate() << " ; " << ingredients.getVisitsEnergyStates().getMaxCoordinate() << " ; " << ingredients.getVisitsEnergyStates().getNBins() << " ]" << std::endl;
 	file << "# used histogram: [" << ingredients.getMinWin() << " ; " << ingredients.getMaxWin() << " ]" << std::endl;
@@ -953,7 +962,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 	file << "# " << ingredients.getName() << std::endl;
 	file << "# MCS: " << std::setprecision(15) << ingredients.getMolecules().getAge() << std::endl;
 	file << "# f0: " << std::setprecision(15) << initialModificationFactor << std::endl;
-	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor() << std::endl;
+	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor(ingredients) << (ingredients.using1tMethod() ? " with 1/t sampling" : "") << std::endl;
 	file << "# Iteration" << iteration << std::endl;
 	file << "# histogram: [" << ingredients.getTotalVisitsEnergyStates().getMinCoordinate() << " ; " << ingredients.getTotalVisitsEnergyStates().getMaxCoordinate() << " ; " << ingredients.getTotalVisitsEnergyStates().getNBins() << " ]" << std::endl;
 	file << "# used histogram: [" << ingredients.getMinWin() << " ; " << ingredients.getMaxWin() << " ]" << std::endl;
@@ -983,7 +992,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 	file << "# " << ingredients.getName() << std::endl;
 	file << "# MCS: " << std::setprecision(15) << ingredients.getMolecules().getAge() << std::endl;
 	file << "# f0: " << std::setprecision(15) << initialModificationFactor << std::endl;
-	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor() << std::endl;
+	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor(ingredients) << (ingredients.using1tMethod() ? " with 1/t sampling" : "") << std::endl;
 	file << "# Iteration" << iteration << std::endl;
 	file << "# histogram: [" << ingredients.getHGLnDOS().getMinCoordinate() << " ; " << ingredients.getHGLnDOS().getMaxCoordinate() << " ; " << ingredients.getHGLnDOS().getNBins() << " ]" << std::endl;
 	file << "# used histogram: [" << ingredients.getMinWin() << " ; " << ingredients.getMaxWin() << " ]" << std::endl;
