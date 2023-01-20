@@ -8,6 +8,6 @@ add_subdirectory(WangLandauSimulatorNextNeighbor)
 
 #add_subdirectory(WangLandauSimulatorNextNeighborRg2)
 
-#add_subdirectory(WangLandauSimulatorExtendedShellInteraction)
+add_subdirectory(WangLandauSimulatorExtendedShellInteraction)
 
 #add_subdirectory(WangLandauSimulatorExtendedShellInteractionRg2)
