@@ -27,16 +27,23 @@ mpiexec --mca orte_base_help_aggregate 0 -n 6 ./WangLandauSimulatorNextNeighborM
 ````sh
 # in total 5*39 = 195 number of processes
 #SBATCH --nodes=5  # number of nodes
-#SBATCH --ntasks-per-node=39
+#SBATCH --ntasks-per-node=39 # number jobs on node
 mpirun ./WangLandauSimulatorNextNeighborMPI -i LinearChain_N384_PerXYZ256_NNShell_SelfAttraction_E-0.40.bfm --min -10000.2 --max 0.6 --bins 25002 -m 100000000000 -r 100000 -b 500000 -f 1.01 --threshold-mod-factor 1.000000001 --min-win -1514.0 --max-win -525.0 --HGLnDOS guess.dat --dump 0 --overlap 0.66 --length-increase 0.001 --read-in-BFM 0 --walker 5 > /dev/null 2>&1
+````
+or  
+````sh
+# in total 3*39 = 117 number of processes
+#SBATCH --nodes=3  # number of nodes
+#SBATCH --ntasks-per-node=39 # number jobs on node
+mpirun ./WangLandauSimulatorExtendedShellInteractionMPI  -i LinearChain_N256_PerXYZ256_EShell_rC2.451_SelfAttraction_E-0.40.bfm --min -10000.2 --max 0.6 --bins 25002 -m 100000000000 -r 100000 -b 500000 -f 2.718 --threshold-mod-factor 1.00000005 --threshold-mod-factor-1t 1.000001 --min-win -480.2 --max-win -150.2  --HGLnDOS guess.dat --dump 0 --overlap 0.66 --length-increase 0.005 --read-in-BFM 0 --walker 3 > /dev/null 2>&1
 ````
 
 NOTE1: specify the number of walker within one energy window (--walker)  
-NOTE2: the number of energy windows (number of processes/number of walker) has to be odd.
+NOTE2: the number of energy windows (number of processes/number of walker) has to be odd.  
+NOTE3: by using 1/t-algorithm be aware that the simulation is (HUGE): tsim = [EwinMax-EwinMin]/ln(threshold-mod-factor)
 
 ## ToDo
 * add implementation for Rg^2 calculation for NextNeighbor
-* add WL-MPI implementation for ExtendedShellInteraction
 * add implementation for Rg^2 calculation for ExtendedShellInteraction
 
 ## License
