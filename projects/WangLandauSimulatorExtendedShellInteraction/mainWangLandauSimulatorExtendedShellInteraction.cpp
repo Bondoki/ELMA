@@ -92,6 +92,7 @@ int main(int argc, char* argv[])
 		["--bins"]
 				("bins histogram boundary (=+200.0)")
 				.required()
+		/*
 		| clara::Opt(  modFactor, "modification factor (=1.01)" )
 		["-f"]["--mod-factor"]
 				("initial modification factor for update DOS (=1.01)")
@@ -100,6 +101,7 @@ int main(int argc, char* argv[])
 		["-x"]["--threshold-mod-factor"]
 				("termination threshold for modification factor to finalize DOS (=1.00000001)")
 				.required()
+		*/
 		| clara::Opt( [&max_mcs](uint64_t const m)
 				{
 					if (m <= 0)
@@ -181,10 +183,12 @@ int main(int argc, char* argv[])
 			["--walker"]
 			("every energy window has this number of walker (=2)")
 			.required()
+		/*
 		| clara::Opt(  modFactorThesholdUsing1t, "minimum modification factor needed to run 1/t algorithm (=0.0)" )
 			["--threshold-mod-factor-1t"]
 			("If the threshold is lower than then the modFactorTheshold then standard WL-sampling applies.")
 			.required()
+		*/
 		| clara::Help( showHelp );
 
 		auto result = parser.parse( clara::Args( argc, argv ) );
@@ -509,6 +513,10 @@ int main(int argc, char* argv[])
 		double lnf_recent = modFactor; // modification factor of the process
 		
 		int flat;               // 0 - histogram not flat; 1 - flat
+		
+		uint64_t simTime_slowest = 0; // the slowest simulation determines the convergence
+		uint64_t simTime_recent  = 0; // the slowest simulation determines the convergence
+		
 		do
 		{
 			std::cout << "rsync all threads iterartion " << myid << std::endl;
@@ -804,6 +812,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 					}
 				}
 				
+				flat = 0;
 				// check that ALL windows have converged
 				// now talk to all the other walkers in the energy window
 				// (! this whole thing can be reduced to an MPI_Allreduce once there 
@@ -929,10 +938,16 @@ MPI_Barrier(MPI_COMM_WORLD);
 				}
 					
 					// get the recent modification factor
-					lnf_recent = myIngredients.getModificationFactor(myIngredients);
+					//lnf_recent = myIngredients.getModificationFactor(myIngredients);
 					
 					// communicate the lagest modificator to ALL process
-					MPI_Allreduce(&lnf_recent,&lnf_slowest,1,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD);
+					//MPI_Allreduce(&lnf_recent,&lnf_slowest,1,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD);
+					
+					// get the recent simulation time
+					simTime_recent = myIngredients.getMolecules().getAge();
+					
+					// communicate the slowest simulation time to ALL process
+					MPI_Allreduce(&simTime_recent,&simTime_slowest,1,MPI_UINT64_T,MPI_MIN,MPI_COMM_WORLD);
 					
 				
 			

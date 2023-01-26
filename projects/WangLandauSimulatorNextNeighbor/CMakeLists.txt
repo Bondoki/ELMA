@@ -21,7 +21,7 @@ link_directories (${LEMONADE_LIBRARY_DIR})
     #set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 #endif()
 
-add_executable(WangLandauSimulatorNextNeighborMPI mainWangLandauSimulatorNextNeighbor.cpp)
+add_executable(WangLandauSimulatorNextNeighborBLENDER mainWangLandauSimulatorNextNeighbor.cpp)
 
-target_link_libraries(WangLandauSimulatorNextNeighborMPI LeMonADE ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES} )
+target_link_libraries(WangLandauSimulatorNextNeighborBLENDER LeMonADE ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES} )
 

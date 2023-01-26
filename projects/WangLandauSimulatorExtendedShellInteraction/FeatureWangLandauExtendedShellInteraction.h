@@ -299,6 +299,55 @@ public:
 	void setShellInteractionType(std::string shellType) {
 		ShellInteractionType = shellType;
 	}
+	
+	void updateHGLnDOSBLENDER()
+	{
+		// find maximum LnDOS
+			double logA_max_tmp = HG_LnDOS.getCountAt(minWin+HG_LnDOS.getBinwidth()); //1.0 
+			
+			for(size_t n=0;n<HG_LnDOS.getNBins();n++){
+				
+				if( (HG_LnDOS.getCenterOfBin(n) >= minWin) && (HG_LnDOS.getCenterOfBin(n) <= maxWin) )
+					if(HG_LnDOS.getCountAt(HG_LnDOS.getCenterOfBin(n)) > logA_max_tmp)
+						logA_max_tmp = HG_LnDOS.getCountAt(HG_LnDOS.getCenterOfBin(n));
+			}
+	
+			// calculate logA
+			double logA = 0.0;
+			double logA_tmp = 0.0;
+			
+			for(size_t n=0;n<HG_LnDOS.getNBins();n++){
+				
+				if( (HG_LnDOS.getCenterOfBin(n) >= minWin) && (HG_LnDOS.getCenterOfBin(n) <= maxWin) )
+				{
+					logA_tmp += std::exp(HG_LnDOS.getCountAt(HG_LnDOS.getCenterOfBin(n)) - logA_max_tmp);
+				}
+			}
+			
+			logA = std::log(logA_tmp) + logA_max_tmp;
+			
+	
+			for(size_t n=0;n<HG_LnDOS.getNBins();n++){
+				
+				if( (HG_LnDOS.getCenterOfBin(n) >= minWin) && (HG_LnDOS.getCenterOfBin(n) <= maxWin) )
+				{
+					double modFactorValue = 1.0+HG_VisitsEnergyStates.getCountAt(HG_LnDOS.getCenterOfBin(n))*std::exp(std::log(1000000.0)-0.1*logA);
+			
+					//umA += (modFactorValue-1.0)*std::exp(HG_LnDOS.getCountAt(Energy)-logA_max);
+					HG_LnDOS.resetValue(HG_LnDOS.getCenterOfBin(n), HG_LnDOS.getCountAt(HG_LnDOS.getCenterOfBin(n))+std::log(modFactorValue));
+				}
+			}
+			
+			/*
+			double modFactorValue_tmp = 1.0+HG_VisitsEnergyStates.getCountAt(Energy)*std::exp(std::log(1000.0)-0.01*(logA_max+std::log(sumA)));
+			
+			sumA += (modFactorValue_tmp-1.0)*std::exp(HG_LnDOS.getCountAt(Energy)-logA_max);
+			
+			
+			if(using_1t == false)
+				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modFactorValue_tmp));//std::log(modificationFactor));
+			*/
+	}
 
 private:
 	
@@ -544,6 +593,7 @@ void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::applyMove(Ingr
 		// is more effiencent so reset the histogram if a new energy entry is found
 		if(HG_VisitsEnergyStates.isVisited(Energy)==false)
 		{
+			/*
 			// find first visited
 			double eln = 0.0; // arbitrary value
 			for (size_t n=0; n < HG_LnDOS.getNBins(); n++) {
@@ -563,6 +613,7 @@ void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::applyMove(Ingr
 			HG_LnDOS.resetValue(Energy,eln);
 			
 			HG_VisitsEnergyStates.clearVector();
+			*/
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
 			HG_VisitsEnergyStates.setVisited(Energy);
 		}
@@ -570,10 +621,12 @@ void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::applyMove(Ingr
 		{
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
 
+			/*
 			if(using_1t == false)
 				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 			else
 				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+(numBinsInWindow*(1.0/ingredients.getMolecules().getAge())));
+			*/
 		}
 		
 		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
@@ -671,6 +724,7 @@ void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::rejectMove(Ing
 		// is more effiencent so reset the histogram if a new energy entry is found
 		if(HG_VisitsEnergyStates.isVisited(Energy)==false)
 		{
+			/*
 			// find first visited
 			double eln = 0.0; // arbitrary value
 			for (size_t n=0; n < HG_LnDOS.getNBins(); n++) {
@@ -690,6 +744,7 @@ void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::rejectMove(Ing
 			HG_LnDOS.resetValue(Energy,eln);
 			
 			HG_VisitsEnergyStates.clearVector();
+			*/
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
 			HG_VisitsEnergyStates.setVisited(Energy);
 		}
@@ -697,11 +752,13 @@ void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::rejectMove(Ing
 		{
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
 			
+			/*
 			//HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 			if(using_1t == false)
 				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 			else
 				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+(numBinsInWindow*(1.0/ingredients.getMolecules().getAge())));
+			*/
 		}
 		
 		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
