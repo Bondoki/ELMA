@@ -948,8 +948,10 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 
 	file << "# " << ingredients.getName() << std::endl;
 	file << "# MCS: " << std::setprecision(15) << ingredients.getMolecules().getAge() << std::endl;
-	file << "# f0: " << std::setprecision(15) << initialModificationFactor << std::endl;
-	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor(ingredients) << (ingredients.using1tMethod() ? " with 1/t sampling" : "") << std::endl;
+	//file << "# f0: " << std::setprecision(15) << initialModificationFactor << std::endl;
+	//file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor(ingredients) << (ingredients.using1tMethod() ? " with 1/t sampling" : "") << std::endl;
+	file << "# C0-Blender: " << std::setprecision(15) << ingredients.getComputationalParameterCZeroBLENDER() << std::endl;
+	file << "# 1N-Blender: " << std::setprecision(15) << ingredients.getComputationalParameterOneOverNBLENDER() << std::endl;
 	file << "# Iteration" << iteration << std::endl;
 	file << "# histogram: [" << ingredients.getVisitsEnergyStates().getMinCoordinate() << " ; " << ingredients.getVisitsEnergyStates().getMaxCoordinate() << " ; " << ingredients.getVisitsEnergyStates().getNBins() << " ]" << std::endl;
 	file << "# used histogram: [" << ingredients.getMinWin() << " ; " << ingredients.getMaxWin() << " ]" << std::endl;
@@ -977,8 +979,10 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 
 	file << "# " << ingredients.getName() << std::endl;
 	file << "# MCS: " << std::setprecision(15) << ingredients.getMolecules().getAge() << std::endl;
-	file << "# f0: " << std::setprecision(15) << initialModificationFactor << std::endl;
-	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor(ingredients) << (ingredients.using1tMethod() ? " with 1/t sampling" : "") << std::endl;
+	//file << "# f0: " << std::setprecision(15) << initialModificationFactor << std::endl;
+	//file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor(ingredients) << (ingredients.using1tMethod() ? " with 1/t sampling" : "") << std::endl;
+	file << "# C0-Blender: " << std::setprecision(15) << ingredients.getComputationalParameterCZeroBLENDER() << std::endl;
+	file << "# 1N-Blender: " << std::setprecision(15) << ingredients.getComputationalParameterOneOverNBLENDER() << std::endl;
 	file << "# Iteration" << iteration << std::endl;
 	file << "# histogram: [" << ingredients.getTotalVisitsEnergyStates().getMinCoordinate() << " ; " << ingredients.getTotalVisitsEnergyStates().getMaxCoordinate() << " ; " << ingredients.getTotalVisitsEnergyStates().getNBins() << " ]" << std::endl;
 	file << "# used histogram: [" << ingredients.getMinWin() << " ; " << ingredients.getMaxWin() << " ]" << std::endl;
@@ -1007,8 +1011,10 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::du
 
 	file << "# " << ingredients.getName() << std::endl;
 	file << "# MCS: " << std::setprecision(15) << ingredients.getMolecules().getAge() << std::endl;
-	file << "# f0: " << std::setprecision(15) << initialModificationFactor << std::endl;
-	file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor(ingredients) << (ingredients.using1tMethod() ? " with 1/t sampling" : "") << std::endl;
+	//file << "# f0: " << std::setprecision(15) << initialModificationFactor << std::endl;
+	//file << "# f: " << std::setprecision(15) << ingredients.getModificationFactor(ingredients) << (ingredients.using1tMethod() ? " with 1/t sampling" : "") << std::endl;
+	file << "# C0-Blender: " << std::setprecision(15) << ingredients.getComputationalParameterCZeroBLENDER() << std::endl;
+	file << "# 1N-Blender: " << std::setprecision(15) << ingredients.getComputationalParameterOneOverNBLENDER() << std::endl;
 	file << "# Iteration" << iteration << std::endl;
 	file << "# histogram: [" << ingredients.getHGLnDOS().getMinCoordinate() << " ; " << ingredients.getHGLnDOS().getMaxCoordinate() << " ; " << ingredients.getHGLnDOS().getNBins() << " ]" << std::endl;
 	file << "# used histogram: [" << ingredients.getMinWin() << " ; " << ingredients.getMaxWin() << " ]" << std::endl;

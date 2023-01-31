@@ -70,6 +70,11 @@ int main(int argc, char* argv[])
 		double flatness = 0.85;
 		
 		int numWalkerPerWindow = 2;
+		
+		// computational parameters - see https://doi.org/10.1103/PhysRevE.102.063304
+        double CZero =1000000.0;
+        double OneOverN = 0.1;
+
 
 		auto parser
 		= clara::Opt( infile, "input (=input.bfm)" )
@@ -183,6 +188,12 @@ int main(int argc, char* argv[])
 			["--walker"]
 			("every energy window has this number of walker (=2)")
 			.required()
+		| clara::Opt(  CZero, "computational parameter for convergence (configuration space) (=1000000.0)" )
+			["--CZero"]
+			("convergence parameter (configuration space) to update lnDOS (=1000000.0)")
+		| clara::Opt(  OneOverN, "computational parameter for tuning convergence (=0.1)" )
+			["--OneOverN"]
+			("convergence parameter tuning convergence to update lnDOS (=0.1)")
 		/*
 		| clara::Opt(  modFactorThesholdUsing1t, "minimum modification factor needed to run 1/t algorithm (=0.0)" )
 			["--threshold-mod-factor-1t"]
@@ -476,6 +487,10 @@ int main(int argc, char* argv[])
 			myIngredients.setName(infile);
 			myIngredients.modifyMolecules().setAge(0); // reset the clock within the file
 		}
+		
+		
+		// set parameter for Wang-Landau-Blender algorithm
+		myIngredients.setComputationalParameterBLENDER(CZero, OneOverN);
 
 		UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc> UWL(myIngredients,
 						save_interval,
@@ -762,6 +777,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 				std::cout << "rsync all threads after RE" << myid << std::endl;
 				MPI_Barrier(MPI_COMM_WORLD);
 				
+				/*
 				flat = 0;
 				
 				// only merging of histograms if NOT using 1/t method
@@ -811,7 +827,9 @@ MPI_Barrier(MPI_COMM_WORLD);
 						
 					}
 				}
+				*/
 				
+				/*
 				flat = 0;
 				// check that ALL windows have converged
 				// now talk to all the other walkers in the energy window
@@ -936,6 +954,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 					}
 					
 				}
+				*/
 					
 					// get the recent modification factor
 					//lnf_recent = myIngredients.getModificationFactor(myIngredients);
@@ -956,8 +975,14 @@ MPI_Barrier(MPI_COMM_WORLD);
 			
 			
 		// termination for ALL processes (NOT windows) only if ALL process reached the thresholdlnf_slowest>lnfmin
-		}while( lnf_slowest > modFactorTheshold );//std::exp(std::pow(10,-8)) ) );
+		// }while( lnf_slowest > modFactorTheshold );//std::exp(std::pow(10,-8)) ) );
 		
+		// termination for ALL processes (NOT windows) only if ALL process reached the simTime_recent>max_mcs
+		}while( simTime_slowest < max_mcs );
+		
+		// output the final logDOS
+		UWL.cleanup();
+		UWL.setReachedFinalState();
 		
 
 	}

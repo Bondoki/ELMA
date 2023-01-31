@@ -276,7 +276,7 @@ public:
 				
 				if( (HG_LnDOS.getCenterOfBin(n) >= minWin) && (HG_LnDOS.getCenterOfBin(n) <= maxWin) )
 				{
-					double modFactorValue = 1.0+HG_VisitsEnergyStates.getCountAt(HG_LnDOS.getCenterOfBin(n))*std::exp(std::log(1000000.0)-0.1*logA);
+					double modFactorValue = 1.0+HG_VisitsEnergyStates.getCountAt(HG_LnDOS.getCenterOfBin(n))*std::exp(std::log(CZero)-OneOverN*logA);
 			
 					//umA += (modFactorValue-1.0)*std::exp(HG_LnDOS.getCountAt(Energy)-logA_max);
 					HG_LnDOS.resetValue(HG_LnDOS.getCenterOfBin(n), HG_LnDOS.getCountAt(HG_LnDOS.getCenterOfBin(n))+std::log(modFactorValue));
@@ -292,6 +292,22 @@ public:
 			if(using_1t == false)
 				HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modFactorValue_tmp));//std::log(modificationFactor));
 			*/
+	}
+	
+	void setComputationalParameterBLENDER(double c, double n)
+	{
+		CZero = c;
+		OneOverN = n; 
+	}
+	
+	double getComputationalParameterCZeroBLENDER()
+	{
+		return CZero;
+	}
+	
+	double getComputationalParameterOneOverNBLENDER()
+	{
+		return OneOverN;
 	}
 
 private:
@@ -354,6 +370,10 @@ private:
   
   double logA_max;
   double sumA;
+  
+  // computational parameters - see https://doi.org/10.1103/PhysRevE.102.063304
+  double CZero;
+  double OneOverN;
 			
 };
 

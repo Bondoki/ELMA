@@ -71,6 +71,10 @@ int main(int argc, char* argv[])
 		double flatness = 0.85;
 		
 		int numWalkerPerWindow = 2;
+		
+		// computational parameters - see https://doi.org/10.1103/PhysRevE.102.063304
+		double CZero =1000000.0;
+		double OneOverN = 0.1;
 
 		auto parser
 		= clara::Opt( infile, "input (=input.bfm)" )
@@ -184,6 +188,12 @@ int main(int argc, char* argv[])
 			["--walker"]
 			("every energy window has this number of walker (=2)")
 			.required()
+		| clara::Opt(  CZero, "computational parameter for convergence (configuration space) (=1000000.0)" )
+			["--CZero"]
+			("convergence parameter (configuration space) to update lnDOS (=1000000.0)")
+		| clara::Opt(  OneOverN, "computational parameter for tuning convergence (=0.1)" )
+			["--OneOverN"]
+			("convergence parameter tuning convergence to update lnDOS (=0.1)")
 		/*
 		| clara::Opt(  modFactorThesholdUsing1t, "minimum modification factor needed to run 1/t algorithm (=0.0)" )
 			["--threshold-mod-factor-1t"]
@@ -476,6 +486,10 @@ int main(int argc, char* argv[])
 			myIngredients.setName(infile);
 			myIngredients.modifyMolecules().setAge(0); // reset the clock within the file
 		}
+		
+		
+		// set parameter for Wang-Landau-Blender algorithm
+		myIngredients.setComputationalParameterBLENDER(CZero, OneOverN);
 
 		UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc> UWL(myIngredients,
 						save_interval,
@@ -763,6 +777,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 				std::cout << "rsync all threads after RE" << myid << std::endl;
 				MPI_Barrier(MPI_COMM_WORLD);
 				
+				/*
 				flat = 0;
 				
 				// only merging of histograms if NOT using 1/t method
@@ -937,6 +952,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 					}
 					
 				}
+				*/
 					
 					// get the recent modification factor
 					//lnf_recent = myIngredients.getModificationFactor(myIngredients);
@@ -957,71 +973,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 			//} while(counterCovergedIteration != numprocs);//omp_get_num_threads());//!UWL.histogramConverged());
 			
 			
-			 // merge g(E) estimators from multiple walkers in the same energy window
-			/*
 			
-			//reset for new iteration
-			UWL.doResetForNextIteration();
-			
-			{
-				stdoutlog=fopen(stdoutlogname,"a");
-				fprintf(stdoutlog,"Proc %3i, NextIterStart.\n",myid);
-				fclose(stdoutlog);
-				//MPI_Abort(MPI_COMM_WORLD,1);
-			}
-			
-			lnf_recent = myIngredients.getModificationFactor();
-			
-			// communicate the lagest modificator to ALL process
-			MPI_Allreduce(&lnf_recent,&lnf_slowest,1,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD);
-			*/
-			//run as long for each interation
-			//#pragma omp barrier
-			//std::cout << std::endl << std::endl << "tid" <<  tid << " NextIterStart: counterCovergedIteration -> " << counterCovergedIteration  << " / " << omp_get_num_threads() <<  std::endl << std::endl << std::endl;
-
-				/*	
-				
-				
-				//UWL.histogramConverged();
-				//counter++;
-				if(UWL.histogramConverged() && UWL.isFirstConverged())
-				{
-					UWL.outputConvergedIteration();
-
-					UWL.unsetFirstConverged();
-
-				#pragma omp atomic
-					counterCovergedIteration = counterCovergedIteration+1;
-				}
-				#pragma  omp flush(counterCovergedIteration)
-				#pragma  omp flush
-
-				std::cout << std::endl << std::endl << "tid" <<  tid << " counterCovergedIteration -> " << counterCovergedIteration  << " / " << omp_get_num_threads() <<  std::endl << std::endl << std::endl;
-*/
-//				#pragma omp barrier
-
-			//} while(counterCovergedIteration != numprocs);//omp_get_num_threads());//!UWL.histogramConverged());
-/*
-			//iteration coverged
-			#pragma omp barrier
-
-			#pragma omp single
-					{
-						counterCovergedIteration=0;
-			#pragma  omp flush(counterCovergedIteration)
-					}
-			#pragma omp barrier
-			#pragma  omp flush
-
-
-			//run as long for each interation
-			#pragma omp barrier
-			//std::cout << std::endl << std::endl << "tid" <<  tid << " NextIterStart: counterCovergedIteration -> " << counterCovergedIteration  << " / " << omp_get_num_threads() <<  std::endl << std::endl << std::endl;
-
-
-			//reset for new iteration
-			UWL.doResetForNextIteration();
-*/
 		// termination for ALL processes (NOT windows) only if ALL process reached the thresholdlnf_slowest>lnfmin
 		//}while( lnf_slowest > modFactorTheshold );//std::exp(std::pow(10,-8)) ) );
 		

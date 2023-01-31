@@ -18,12 +18,13 @@ Repository with updates, analyzers, and projects for sharing BFM stuff related t
     make
 ````
 
-## Test WL-MPI single machine
+## Test WL-BLENDER single machine
 ````sh
-mpiexec --mca orte_base_help_aggregate 0 -n 6 ./WangLandauSimulatorNextNeighborMPI  -i LinearChain_N32_PerXYZ256_NNShell_SelfAttraction_E-0.40.bfm --min -10000.2 --max 0.6 --bins 25002 -m 100000000000 -r 10000 -b 50000 -f 1.00001163461111 --threshold-mod-factor 1.000000010 --min-win -30.2 --max-win 0.4 --HGLnDOS guess.dat --dump 0 --overlap 0.66 --length-increase 0.005 --read-in-BFM 0 --walker 2 > /dev/null 2>&1
+mpiexec --mca orte_base_help_aggregate 0 -n 6 ./WangLandauSimulatorExtendedShellInteractionBLENDER  -i LinearChain_N32_PerXYZ256_EShell_rC2.451_SelfAttraction_E-0.40.bfm --min -10000.2 --max 0.6 --bins 25002 -m 10000000 -r 500000 -b 500000 --min-win -45.0 --max-win -20.2  --HGLnDOS guess.dat --dump 0 --overlap 0.66 --length-increase 0.005 --read-in-BFM 0 --walker 2 --CZero 1000000.0 --OneOverN 0.1 > /dev/null 2>&1  
+mpiexec --mca orte_base_help_aggregate 0 -n 6 ./WangLandauSimulatorNextNeighborBLENDER  -i LinearChain_N32_PerXYZ256_NNShell_SelfAttraction_E-0.40.bfm --min -10000.2 --max 0.6 --bins 25002 -m 4000000 -r 500000 -b 500000  --min-win -97.0 --max-win -49.0 --HGLnDOS guess.dat --dump 0 --overlap 0.66 --length-increase 0.005 --read-in-BFM 0 --walker 2 --CZero 1000000.0 --OneOverN 0.1 > /dev/null 2>&1
 ````
 
-## Test WL-MPI multiple machine
+## Test WL-BLENDER multiple machine
 ````sh
 # in total 5*39 = 195 number of processes
 #SBATCH --nodes=5  # number of nodes
@@ -42,6 +43,8 @@ mpirun ./WangLandauSimulatorExtendedShellInteractionBLENDER  -i LinearChain_N32_
 NOTE1: specify the number of walker within one energy window (--walker)  
 NOTE2: the number of energy windows (number of processes/number of walker) has to be odd.  
 NOTE3: by using Wang-Landau-BLENDER algorithm (10.1103/physreve.102.063304) you have to set the simulation time tsim instead of modification factor threshold  
+NOTE4: by default --CZero 1000000.0 --OneOverN 0.1  
+NOTE5: by using Wang-Landau-BLENDER algorithm avoid all input parameter "--mod-factor", "--threshold-mod-factor", or "--threshold-mod-factor-1t" as they are meaningless. Otherwise the programm will terminate.  
 
 ## ToDo
 * add implementation for Rg^2 calculation for NextNeighbor
