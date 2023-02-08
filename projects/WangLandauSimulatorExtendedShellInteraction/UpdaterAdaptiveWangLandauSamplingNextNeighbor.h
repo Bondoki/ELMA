@@ -487,7 +487,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 		//std::cout << " done" << std::endl;
 		
 		//if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) < maxWindow+2*ingredients.getHGLnDOS().getBinwidth()) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) > minWindow-2*ingredients.getHGLnDOS().getBinwidth()) )
-		checkForFirstWindowAppearance();
+		//checkForFirstWindowAppearance();
 
 
 
@@ -516,6 +516,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 	}
 	ingredients.updateHGLnDOSBLENDER();
 	
+	checkForFirstWindowAppearance();
 	//update age of system and give some more output on simulation progress
 	ingredients.modifyMolecules().setAge(ingredients.modifyMolecules().getAge()+nsteps);
 	std::cout<<"mcs "<<ingredients.getMolecules().getAge() << " with " << (((1.0*nsteps)*ingredients.getMolecules().size())/(std::difftime(std::time(NULL), startTimer)) ) << " [attempted moves/s]" <<std::endl;
