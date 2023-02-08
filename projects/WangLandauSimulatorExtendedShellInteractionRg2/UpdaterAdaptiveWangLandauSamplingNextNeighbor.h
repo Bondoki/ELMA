@@ -142,8 +142,13 @@ public:
 
 
 		std::stringstream ssprefixWindowBFM;
-		ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
+		ssprefixWindowBFM << "_idxWin" << std::setw(4) << std::setfill('0') << numberIdxWindow;
 		writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + "_final.bfm"));
+		
+		std::stringstream ssprefixWindowBFMInit;
+		ssprefixWindowBFMInit << "_idxWin" << std::setw(4) << std::setfill('0') << numberIdxWindow;
+		writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFMInit.str() + ".bfm"));
+		
 	};
 	
 	
@@ -219,7 +224,7 @@ public:
 		}
 
 		std::stringstream ssprefixWindowBFM;
-		ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
+		ssprefixWindowBFM << "_idxWin" << std::setw(4) << std::setfill('0') << numberIdxWindow;
 		writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
 
 
@@ -418,7 +423,7 @@ nsteps(steps)
 	iterationfirstconverged = false;
 
 	std::stringstream ssprefixWindow;
-	ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << numberWindow;
+	ssprefixWindow << "_idxWin" << std::setw(4) << std::setfill('0') << numberWindow;
 	prefixWindow = ssprefixWindow.str();
 
 	minStatisticEntries = _min_statistic_entries;
@@ -577,12 +582,12 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ch
 				ingredients.setWindowState(true, minWindow, maxWindow);
 
 				std::stringstream ssprefixWindow;
-				ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow << "_minWin" << minWindow << "_maxWin" <<  maxWindow;
+				ssprefixWindow << "_idxWin" << std::setw(4) << std::setfill('0') << numberIdxWindow << "_minWin" << minWindow << "_maxWin" <<  maxWindow;
 
 				prefixWindow = ssprefixWindow.str();
 
 				std::stringstream ssprefixWindowBFM;
-				ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << numberIdxWindow;
+				ssprefixWindowBFM << "_idxWin" << std::setw(4) << std::setfill('0') << numberIdxWindow;
 				writeBFM_File(std::string(ingredients.getName() + ssprefixWindowBFM.str() + ".bfm"));
 
 				//dump histograms in the start of iteration procedure
@@ -1166,7 +1171,7 @@ double UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::
 		for (int k= 0; k < ingredients.getMolecules().size(); k++)
 		{
 			for (int l= k; l < ingredients.getMolecules().size(); l++)
-				 if((ingredients.getMolecules()[k].getAttributeTag()!=3) && (ingredients.getMolecules()[l].getAttributeTag()!=3))
+				// if((ingredients.getMolecules()[k].getAttributeTag()!=3) && (ingredients.getMolecules()[l].getAttributeTag()!=3))
 			{
 				Rg2_x += (ingredients.getMolecules()[k].getX()-ingredients.getMolecules()[l].getX())*(ingredients.getMolecules()[k].getX()-ingredients.getMolecules()[l].getX());
 				Rg2_y += (ingredients.getMolecules()[k].getY()-ingredients.getMolecules()[l].getY())*(ingredients.getMolecules()[k].getY()-ingredients.getMolecules()[l].getY());
@@ -1175,7 +1180,7 @@ double UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::
 
 			}
 
-			if((ingredients.getMolecules()[k].getAttributeTag()!=3))
+			//if((ingredients.getMolecules()[k].getAttributeTag()!=3))
 				monomerCounter++;
 		}
 		if(monomerCounter != ingredients.getMolecules().size())
@@ -1207,7 +1212,7 @@ double UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::
 	for (int k= 0; k < ingredients.getMolecules().size(); k++)
 	{
 		for (int l = 0; l < ingredients.getMolecules().getNumLinks(k); l++)
-			if((ingredients.getMolecules()[k].getAttributeTag()!=3) && (ingredients.getMolecules()[l].getAttributeTag()!=3))
+			//if((ingredients.getMolecules()[k].getAttributeTag()!=3) && (ingredients.getMolecules()[l].getAttributeTag()!=3))
 			{
 				if( k < ingredients.getMolecules().getNeighborIdx(k, l))
 				{

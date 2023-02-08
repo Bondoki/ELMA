@@ -107,6 +107,7 @@ public:
 		//if still here, the end of the file has been reached
 		std::cout << "endoffile HGLnDOS" << std::endl ;
 
+		return true;
 	}
 
 	std::vector<std::string> tokenize1Parameter(const std::string& str,

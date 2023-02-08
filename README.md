@@ -38,13 +38,22 @@ or
 mpirun ./WangLandauSimulatorExtendedShellInteractionMPI  -i LinearChain_N256_PerXYZ256_EShell_rC2.451_SelfAttraction_E-0.40.bfm --min -10000.2 --max 0.6 --bins 25002 -m 100000000000 -r 100000 -b 500000 -f 2.718 --threshold-mod-factor 1.00000005 --threshold-mod-factor-1t 1.000001 --min-win -480.2 --max-win -150.2  --HGLnDOS guess.dat --dump 0 --overlap 0.66 --length-increase 0.005 --read-in-BFM 0 --walker 3 > /dev/null 2>&1
 ````
 
+## Test WL-MPI single machine $Rg^2$
+````sh
+mpiexec --mca orte_base_help_aggregate 0 -n 6 ./WangLandauSimulatorNextNeighborMPI_Rg2  -i Vicsek_f3_G2_S2_N28_PerXYZ256_NNShell_SelfAttraction_E-0.40.bfm --min -1000.2 --max 0.6 --bins 2502 -m 4000000000 -r 500000 -b 500000 --min-win -55.2 --max-win 0.2  --HGLnDOS HGLnDOS.dat --dump 0 --overlap 0.55 --length-increase 0.005 --read-in-BFM 1 --walker 2 --min-statistic 500000  > /dev/null 2>&1
+mpiexec --mca orte_base_help_aggregate 0 -n 6 ./WangLandauSimulatorExtendedShellInteractionMPI_Rg2  -i Vicsek_f3_G2_S2_N28_PerXYZ256_EShell_rC2.451_SelfAttraction_E-0.40.bfm --min -1000.2 --max 0.6 --bins 2502 -m 4000000000 -r 500000 -b 500000 --min-win -55.2 --max-win 0.2  --HGLnDOS HGLnDOS.dat --dump 0 --overlap 0.55 --length-increase 0.005 --read-in-BFM 1 --walker 2 --min-statistic 500000  > /dev/null 2>&1
+````
+
+
 NOTE1: specify the number of walker within one energy window (--walker)  
 NOTE2: the number of energy windows (number of processes/number of walker) has to be odd.  
 NOTE3: by using 1/t-algorithm be aware that the simulation is (HUGE): tsim = [EwinMax-EwinMin]/ln(threshold-mod-factor)
+NOTE4: $Rg^2$ is calculated after EVERY MCS
+
+
 
 ## ToDo
-* add implementation for Rg^2 calculation for NextNeighbor
-* add implementation for Rg^2 calculation for ExtendedShellInteraction
+* refactor code and beautify
 
 ## License
 

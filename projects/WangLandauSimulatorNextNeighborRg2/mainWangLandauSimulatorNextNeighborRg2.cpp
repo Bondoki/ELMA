@@ -1,10 +1,13 @@
 
 
-#include <omp.h>
+//#include <omp.h>
 
 #include <cstring>
 #include <sstream>      // std::stringstream, std::stringbuf
+#include <cmath>
 
+#include <cstdio>      //sprintf
+#include <climits>     // INT_MAX
 
 #include <LeMonADE/utility/RandomNumberGenerators.h>
 #include <LeMonADE/core/ConfigureSystem.h>
@@ -24,9 +27,14 @@
 #include "UpdaterAdaptiveWangLandauSamplingNextNeighbor.h"
 #include "ReadInHGLnDOS.h"
 
+#include "mpi.h" // Include MPI header file containing the librarys API
 
 int main(int argc, char* argv[])
 {
+	
+	// Start up MPI
+	MPI_Init (&argc, &argv);
+	
 	try{
 		std::string infile  = "input.bfm";
 		std::string outfile = "outfile.bfm";
@@ -56,6 +64,8 @@ int main(int argc, char* argv[])
 		double flatness = 0.85;
 
 		uint32_t min_statistic_entries=100;
+		
+		int numWalkerPerWindow = 2;
 
 		auto parser
 		= clara::Opt( infile, "input (=input.bfm)" )
@@ -77,10 +87,6 @@ int main(int argc, char* argv[])
 		| clara::Opt(  bins_histogram, "bins histogram (=+200.0)" )
 		["--bins"]
 				("bins histogram boundary (=+200.0)")
-				.required()
-		| clara::Opt(  modFactor, "modification factor (=1.01)" )
-		["-f"]["--mod-factor"]
-				("initial modification factor for update DOS (=1.01)")
 				.required()
 		| clara::Opt( [&max_mcs](uint64_t const m)
 				{
@@ -155,10 +161,6 @@ int main(int argc, char* argv[])
 			["--read-in-BFM"]
 			("every window is initialized with separate bfm file (=false)")
 			.required()
-		| clara::Opt(  flatness, "flatness criterion of histogram iteration (=0.85)" )
-			["--flatness"]
-			("flatness criterion of histogram iteration (=0.85)")
-			.required()
 		| clara::Opt( [&min_statistic_entries](int const b)
 			{
 				if (b < 0)
@@ -174,6 +176,10 @@ int main(int argc, char* argv[])
 			["--min-statistic"]
 			("(required) <integer> Number of entries for calculating the average at specific energy." )
 			.required()
+		| clara::Opt(  numWalkerPerWindow, "walker per energy window (=2)" )
+			["--walker"]
+			("every energy window has this number of walker (=2)")
+			.required()
 		| clara::Help( showHelp );
 
 		auto result = parser.parse( clara::Args( argc, argv ) );
@@ -183,9 +189,9 @@ int main(int argc, char* argv[])
 		}
 		else if(showHelp == true)
 		{
-			std::cout << "Simulator for the ScBFM with Ex.Vol and BondCheck and WangLandau in ES-shell" << std::endl
+			std::cout << "Simulator for the ScBFM with Ex.Vol and BondCheck and WangLandau in NN-shell" << std::endl
 					<< "maximum number of connections per monomer is 8" << std::endl
-					<< "Features used: FeatureBondset, FeatureAttributes, FeatureWangLandauExtendedShellInteraction<FeatureLattice<uint8_t> >, FeatureWangLandauNextNeighbor" << std::endl
+					<< "Features used: FeatureBondset, FeatureAttributes, FeatureWangLandauNextNeighbor" << std::endl
 					<< "Updaters used: ReadFullBFMFile, SimpleSimulator" << std::endl
 					<< "Analyzers used: WriteBfmFile" << std::endl;
 
@@ -207,8 +213,130 @@ int main(int argc, char* argv[])
 					<< "max_win: " 	<< maxWin << std::endl
 					<< "HGLnDOS:" << HGLnDOSfile << std::endl
 					<< "filedump:" << filedump << std::endl
+					<< "walker per energy window: " << numWalkerPerWindow << std::endl
 					;
 		}
+		
+		
+	// ******************************************
+	// Here goes the MPI stuff
+	// ******************************************
+	
+	// See: DOI 10.1088/1742-6596/1012/1/012003
+	
+	// File handlers for I/O
+	//FILE *file;
+	FILE *stdoutlog;
+	//FILE *wanderlog;
+	//char filename[50];
+	char stdoutlogname[128];
+	
+	// Set up local MPI communicators for replica-exchange (RE)
+	// - each process belongs to two local groups/communicators
+	// - each process has different local IDs in different communicators generally
+	MPI_Status status;
+	
+	int numprocs; // total number of walkers
+	// Get total number of processes
+	MPI_Comm_size (MPI_COMM_WORLD, &numprocs);
+	
+	int myid; // my rank(ID) in the global communicator, MPI_COMM_WORLD
+	MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+	
+	int multiple = numWalkerPerWindow;//2; // number of walkers having the same energy window
+	
+	// Error log for every process
+	sprintf(stdoutlogname, "Error%04i.log", myid);
+	
+	// at the moment, the code works only for an _odd_ number of energy windows
+	// (to make the RE in windows at the outside consistent)
+	if ((numprocs/multiple)%2 == 0)
+    {
+      if (myid == 0) 
+        {
+			stdoutlog=fopen(stdoutlogname,"a");
+			std::cerr << "ERROR: Even number of energy windows " << int(numprocs/multiple) << " requested. Please request an odd number of energy windows." << std::endl<< std::endl;
+			fprintf(stdoutlog, "ERROR: Even number of energy windows (%d) requested. Please request an odd number of energy windows.\n\n", numprocs/multiple);
+			fclose(stdoutlog);
+          
+        }
+
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+	
+	
+	int comm_id; // ID for a communicator
+	int mylocalid[2]; // my ID in local communicators
+	
+	// Get the group of processes in MPI_COMM_WORLD (i.e., all processors)
+	MPI_Group world;
+	MPI_Comm_group(MPI_COMM_WORLD, &world);
+	
+	// The followings are for defining a list of MPI local communicators
+	stdoutlog=fopen(stdoutlogname,"a");
+	int *ranks;  // an array to store global IDs
+	ranks = (int*) malloc(2*multiple*sizeof(int)); // for walkers in a local comm.
+	
+	int numLocalComm = (numprocs/multiple) - 1; // number of local communicators
+	
+	MPI_Group *mpi_local_group; // an array to store local groups
+	MPI_Comm *mpi_local_comm;  // an array to store local comm.
+	
+	mpi_local_group = (MPI_Group*) malloc(numLocalComm*sizeof(MPI_Group));
+	mpi_local_comm = (MPI_Comm*) malloc(numLocalComm*sizeof(MPI_Comm));
+	
+	for (int i=0; i<numLocalComm; i++) // i: counter for local communicators
+	{
+		// For each walker in local communicator (group) i, calculate the global ID
+		// (its rank in MPI_COMM_WORLD) and put them in the ‘ranks’ array
+		
+		for (int j=0; j<2*multiple; j++) // j: counter for walkers in a local comm.
+		{
+			ranks[j] = i*multiple+j;
+			
+			if (myid==0) 
+			{
+			fprintf(stdoutlog,"Proc %3i: %i will be part of communicator/group %i\n",myid,ranks[j],i);
+			}
+		}
+		
+		MPI_Group_incl(world,2*multiple,ranks,&mpi_local_group[i]); // create local group
+		MPI_Comm_create(MPI_COMM_WORLD,mpi_local_group[i],&mpi_local_comm[i]); // create communicator for that group
+	}
+	
+	free(ranks);
+	
+	// get my local id (in my local communicators)
+  if (myid<numprocs-multiple)  // Every processor except those in the last window
+    {
+      comm_id=2*(myid/(2*multiple));
+      MPI_Comm_rank(mpi_local_comm[comm_id], &mylocalid[0]);
+      fprintf(stdoutlog,"Proc %3i: I am part of communicator/group %i with local_id[0]=%i\n",myid,comm_id,mylocalid[0]);
+    }
+  else
+    {
+      mylocalid[0]=INT_MAX; // just to give it a value
+      fprintf(stdoutlog,"Proc %3i: got local_id[0]=%i\n",myid,mylocalid[0]);
+    }
+    
+	if (myid>=multiple)
+    {
+      comm_id=2*((myid-multiple)/(2*multiple))+1;
+      MPI_Comm_rank(mpi_local_comm[comm_id], &mylocalid[1]);
+      fprintf(stdoutlog,"Proc %3i: I am part of communicator/group %i with local_id[1]=%i\n",myid,comm_id,mylocalid[1]);
+    }
+  else
+    {
+      mylocalid[1]=INT_MAX; // just to give it a value
+      fprintf(stdoutlog,"Proc %3i: got local_id[1]=%i\n",myid,mylocalid[1]);
+    }
+
+    fprintf(stdoutlog,"Proc %3i: Start WL iteration\n",myid);
+	fclose(stdoutlog);
+  
+  MPI_Barrier(MPI_COMM_WORLD);
+  
+  
 	
 	int nthreads, tid;
 
@@ -239,17 +367,23 @@ int main(int argc, char* argv[])
 	int counterCovergedIteration = 0;
 
 
-#pragma omp parallel private(nthreads, tid) shared(mol, energyState, energyWinStart, energyWinEnd, lnDOSenergyOld, lnDOSenergyNew, rnd_tid, acceptExchange, counterCovergedIteration)
+// #pragma omp parallel private(nthreads, tid) shared(mol, energyState, energyWinStart, energyWinEnd, lnDOSenergyOld, lnDOSenergyNew, rnd_tid, acceptExchange, counterCovergedIteration)
 	{
 		/* Obtain thread number */
-		tid = omp_get_thread_num();
+		/* Obtain thread number */
+		tid = myid;//omp_get_thread_num();
 
-		std::cout << "Hello World from thread = " <<  tid << std::endl;
+		stdoutlog=fopen(stdoutlogname,"a");
+		fprintf(stdoutlog,"Hello World from thread = %3i out of %3i\n",myid, numprocs);
+		fclose(stdoutlog);
 
 		/* Only master thread does this */
 		if (tid == 0)
 		{
-			nthreads = omp_get_num_threads();
+			stdoutlog=fopen(stdoutlogname,"a");
+			nthreads = numprocs;//omp_get_num_threads();
+			fprintf(stdoutlog,"Number of all processes = %3i\n",nthreads);
+			fclose(stdoutlog);
 			std::cout << "Number of threads = " << nthreads << std::endl;
 		}
 
@@ -302,10 +436,12 @@ int main(int argc, char* argv[])
 		double maxWinThread = minWinThread+lengthWindow;
 		*/
 
-		double lengthFirst=(maxWin-minWin)/(overlap+(1.0-overlap)*(std::pow((1.0+lengthIncrease), 1.0*omp_get_num_threads())-1.0)/lengthIncrease );
+		//double lengthFirst=(maxWin-minWin)/(overlap+(1.0-overlap)*(std::pow((1.0+lengthIncrease), 1.0*omp_get_num_threads())-1.0)/lengthIncrease );
+		double lengthFirst=(maxWin-minWin)/(overlap+(1.0-overlap)*(std::pow((1.0+lengthIncrease), 1.0*(numprocs/multiple))-1.0)/lengthIncrease );
 
-		double minWinThread = minWin+lengthFirst*(std::pow((1.0+lengthIncrease), tid)-1.0)/lengthIncrease  - overlap*lengthFirst*(std::pow((1.0+lengthIncrease), (tid+1.0))-(1.0+lengthIncrease))/lengthIncrease;
-		double maxWinThread = minWinThread+lengthFirst*std::pow((1.0+lengthIncrease), 1.0*tid);
+		int tid_window = tid/multiple;
+		double minWinThread = minWin+lengthFirst*(std::pow((1.0+lengthIncrease), tid_window)-1.0)/lengthIncrease  - overlap*lengthFirst*(std::pow((1.0+lengthIncrease), (tid_window+1.0))-(1.0+lengthIncrease))/lengthIncrease;
+		double maxWinThread = minWinThread+lengthFirst*std::pow((1.0+lengthIncrease), 1.0*tid_window);
 
 		// reorder in case the boundaries are used in wrong order
 		if(maxWinThread < minWinThread)
@@ -314,6 +450,7 @@ int main(int argc, char* argv[])
 			minWinThread = maxWinThread;
 			maxWinThread = tmp;
 		}
+		
 
 
 		if(readinBFMinWin == false)
@@ -326,7 +463,7 @@ int main(int argc, char* argv[])
 		else
 		{
 			std::stringstream ssprefixWindowBFM;
-			ssprefixWindowBFM << "_idxWin" << std::setw(2) << std::setfill('0') << tid;
+			ssprefixWindowBFM << "_idxWin" << std::setw(4) << std::setfill('0') << tid;
 
 			UpdaterReadBfmFile<Ing> UR(std::string(infile + ssprefixWindowBFM.str() + ".bfm"),myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE);
 			UR.initialize();
@@ -334,6 +471,7 @@ int main(int argc, char* argv[])
 			UR.cleanup();
 
 			myIngredients.setName(infile);
+			myIngredients.modifyMolecules().setAge(0); // reset the clock within the file
 		}
 
 		UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc> UWL(myIngredients,
@@ -358,237 +496,300 @@ int main(int argc, char* argv[])
 			UWL.execute();
 		} while(!myIngredients.isEnergyInWindow());
 
-#pragma omp barrier
-		// here all threads are sync and in therir desried window
-		// run the simulations
-
-		//do
+		myIngredients.modifyMolecules().setAge(0); // reset the clock within the file
+		
+		 MPI_Barrier(MPI_COMM_WORLD);
+		 
+		 int tryleft=0, tryright=0, exchangeleft=0, exchangeright=0;
+		 
+		 
+		int hasFullStatisics_slowest = 0; // the slowest simulation determines the convergence
+		int hasFullStatisics_recent  = 0; // the slowest simulation determines the convergence
+		 
+		 
+		 do
 		{
-#pragma omp barrier
+			//std::cout << "rsync all threads iterartion " << myid << std::endl;
+//MPI_Barrier(MPI_COMM_WORLD);
+// #pragma omp barrier
 			// run the one iterartion until histogram converged
 
-			do
+			
+			
+			//do // run until all walker WITHIN ONE windows converged for their iteration
 			{
-#pragma omp barrier
+				//std::cout << "rsync all threads windows conversion " << myid << std::endl;
+MPI_Barrier(MPI_COMM_WORLD);
+//#pragma omp barrier
 				// output configuration
-				/*if(filedump)
-				{
-					std::stringstream ss;
-					ss << infile << "_" << tid << ".bfm";
+				///if(filedump)
+				//{
+					//std::stringstream ss;
+					//ss << infile << "_" << tid << ".bfm";
 
-					AnalyzerWriteBfmFile<Ing> ABFM(ss.str(),myIngredients);
-					ABFM.initialize();
-					ABFM.execute();
-					ABFM.cleanup();
-				}*/
+					//AnalyzerWriteBfmFile<Ing> ABFM(ss.str(),myIngredients);
+					//ABFM.initialize();
+					//ABFM.execute();
+					//ABFM.cleanup();
+				//}/
 
 				//for(int count = 0; count < 1; count++)
 				UWL.execute();
 
-				#pragma omp barrier
+				//#pragma omp barrier
+				// workaround for broadcasting the swap direction to all processes
+				MPI_Barrier(MPI_COMM_WORLD);
+				int swap_direction=rng.r250_rand32()%2;
+				MPI_Bcast(&swap_direction, 1, MPI_INT, 0, MPI_COMM_WORLD);
+				MPI_Barrier(MPI_COMM_WORLD);
+				
 				//exchange configurations
 
-
-				#pragma omp single
+				// THIS IS THE MASTER RE / SWAP FUNCTION
+				//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+				//int replica_exchange(int swap_direction, int index_akt)
+				{
+					//energyState[0] =  myIngredients.getInternalEnergyCurrentConfiguration(myIngredients);
+					//energyWinStart[0]= myIngredients.getMinWin();
+					//energyWinEnd[0]= myIngredients.getMaxWin();
+					//lnDOSenergyOld[0] = myIngredients.getHGLnDOS().getCountAt(energyState[0]);
+					
+					double E_new; // energy by other process
+					double E_old; // current energy
+					
+					
+					// frac refers to local exchange probability
+					// wk is combined exchange probability
+					double myfrac,otherfrac,randx,wk;
+					
+					int change=0; // boolean: 0 for not exchanging, 1 for exchanging
+					int swap_partner=-1; // id of swap partner (receive_buffer)
+					
+					// 0 -> to the right; 1 -> to the left
+					/*int swap_direction=rng.r250_rand32()%2;*///(myIngredients.getMolecules().getAge()/save_interval)%2;// swap_direction%2; // comes actually as number of swap attempt
+					
+					// everyone has to find its swap-partner
+					
+					int *pairs; // array containing the partners of each process (send_buffer)
+					pairs = (int*)malloc(2*multiple*sizeof(int));
+					
+					if (mylocalid[swap_direction]==0) // 'head-node' in the energy window determines pairs of flippartners
 					{
-						rnd_tid=rng.r250_rand32()%(nthreads-1);
-				#pragma  omp flush(rnd_tid)
-					}
-
-				#pragma omp barrier
-					if (tid == rnd_tid)
-					{
-						mol[0]= myIngredients.getMolecules();
-						energyState[0] =  myIngredients.getInternalEnergyCurrentConfiguration(myIngredients);
-						energyWinStart[0]= myIngredients.getMinWin();
-						energyWinEnd[0]= myIngredients.getMaxWin();
-						lnDOSenergyOld[0] = myIngredients.getHGLnDOS().getCountAt(energyState[0]);
-						//lnDOSenergyNew
-						std::cout << "copy molecules tid " <<  tid << " with energy " << energyState[0] << " and lnDOS " << lnDOSenergyOld[0] << " in win [ " << energyWinStart[0] << " ; " << energyWinEnd[0] << " ] " << std::endl;
-					#pragma  omp flush
-					}
-					if (tid == rnd_tid+1)
-					{
-						mol[1]= myIngredients.getMolecules();
-						energyState[1] =  myIngredients.getInternalEnergyCurrentConfiguration(myIngredients);
-						energyWinStart[1]= myIngredients.getMinWin();
-						energyWinEnd[1]= myIngredients.getMaxWin();
-						lnDOSenergyOld[1] = myIngredients.getHGLnDOS().getCountAt(energyState[1]);
-						std::cout << "copy molecules tid " <<  tid << " with energy " << energyState[1] << " and lnDOS " << lnDOSenergyOld[1] << " in win [ " << energyWinStart[1] << " ; " << energyWinEnd[1] << " ] " << std::endl;
-					#pragma  omp flush
-					}
-				#pragma omp barrier
-					if (tid == rnd_tid)
-					{
-						lnDOSenergyNew[0] = myIngredients.getHGLnDOS().getCountAt(energyState[1]);
-						acceptExchange[0] = false;
-					#pragma  omp flush
-					}
-
-					if (tid == rnd_tid+1)
-					{
-						lnDOSenergyNew[1] = myIngredients.getHGLnDOS().getCountAt(energyState[0]);
-						acceptExchange[1] = false;
-					#pragma  omp flush
-					}
-				#pragma omp barrier
-					if (tid == rnd_tid)
-					{
-
-						// check boundary windows
-						// only one decision for both
-						if((energyState[1] < energyWinEnd[0]) && (energyState[0] > energyWinStart[1]) )
-							if((energyState[0] < energyWinEnd[1]) && (energyState[1] > energyWinStart[0]) )
+						int choose_from=multiple; // number of free partners in higher window of communicator
+						int select; // storage for random number
+						
+						int *libre; // list of free partners from higher window in communicator
+						libre = (int*)malloc(multiple*sizeof(int));
+						
+						for (int i=0;i<multiple;i++) libre[i]=multiple+i; // initialise
+						
+						// idea: processes from the lower window choose someone from the higher window at random
+						// of course, the chosen walker can't have an exchange partner yet
+						for (int i=0;i<multiple;i++) // loop over processes in the lower window
 						{
-							double diffLnDOS = lnDOSenergyOld[0]+lnDOSenergyOld[1]-lnDOSenergyNew[0]-lnDOSenergyNew[1];
+							select=rng.r250_rand32()%choose_from;
+							pairs[i]=libre[select];
+							pairs[libre[select]]=i; // the 'vice-versa pair'
+							// update list
+							choose_from--;
+							for (int j=select;j<choose_from;j++)
+								libre[j]=libre[j+1];
+						}
+						
+						//{
+							//stdoutlog=fopen(stdoutlogname,"a");
+							//fprintf(stdoutlog,"Proc %3i: Drew the following swap partners:\n",myid);
+							//for (int i=0;i<2*multiple;i++)
+								//fprintf(stdoutlog,"Proc %3i: %i -- %i (local ids in communicator)\n",myid,i,pairs[i]);
+							
+							//fprintf(stdoutlog,"Proc %3i: tryleft: %i, exchangeleft %i (Akzeptanzleft:%.2lf) <--> tryright: %i, exchangeright %i (Akzeptanzright:%.2lf)\n",myid,tryleft,exchangeleft,(double)exchangeleft/(double)tryleft,tryright,exchangeright,(double)exchangeright/(double)tryright);						      fclose(stdoutlog);
+						//}
+						
+						free(libre);
+					}
+					
+					// at this point, every walker has a swap partner assigned, now they must be communicated
+					if ((swap_direction==0)&&(myid<(numprocs-multiple))) // the walkers from the last node should not swap
+					{
+						comm_id=2*(myid/(2*multiple)); // ! all integer, the '/' is a (div) ! Not the same as myid/multiple !
+						MPI_Scatter(pairs,1,MPI_INT,&swap_partner,1,MPI_INT,0,mpi_local_comm[comm_id]);
+					}
+					
+					if ((swap_direction==1)&&(myid>=multiple)) // the walkers from the zero-node should not swap
+					{
+						comm_id=((myid-multiple)/(2*multiple))*2+1; // ! all integer, the '/' is a (div) ! See above
+						MPI_Scatter(pairs,1,MPI_INT,&swap_partner,1,MPI_INT,0,mpi_local_comm[comm_id]);
+					}
+					
+					std::cout << "rsync all threads " << myid << std::endl;
+					MPI_Barrier(MPI_COMM_WORLD);
+					
+					free(pairs);
+					
+					if (swap_partner!=-1) // i.e. if there is a swap-partner for me (if I am at a boundary, I might not have a swap partner this time)
+					{
+						// statistics
+						if (swap_partner>mylocalid[swap_direction]) tryright++;
+						else tryleft++;
+						
+						// safety cross check
+						E_old=myIngredients.getInternalEnergyCurrentConfiguration(myIngredients);
+						
+						
+						E_new = myIngredients.getInternalEnergyCurrentConfiguration(myIngredients);
+						//i_new= myIngredients.getHGLnDOS().getBinNo(E_new);
+						
+						
+						// get histogram index from my swap partner
+						//MPI_Sendrecv_replace(&i_new,1,MPI_INT,swap_partner,1,swap_partner,1,mpi_local_comm[comm_id],&status);
+						MPI_Sendrecv_replace(&E_new,1,MPI_DOUBLE,swap_partner,1,swap_partner,1,mpi_local_comm[comm_id],&status);
+						
+						//if (Ecur+(2*numberspins)!=index_akt)
+						//{
+							//stdoutlog=fopen(stdoutlogname,"a");
+							//fprintf(stdoutlog,"Proc %3i, replica_exchange(): E_old=%f with lnDOS=%f, E_new=%f with lnDOS=%f from %3i on swap direction %i at time %i.\n",myid,E_old,myIngredients.getHGLnDOS().getCountAt(E_old), E_new, myIngredients.getHGLnDOS().getCountAt(E_new), swap_partner, swap_direction, myIngredients.getMolecules().getAge());
+							//fclose(stdoutlog);
+							////MPI_Abort(MPI_COMM_WORLD,1);
+						//}
+						
+						
+						if ((E_new>myIngredients.getMaxWin())||(E_new<myIngredients.getMinWin())) // energyranges must overlap!
+						{
+							myfrac=-1.0;
+						}
+						else
+						{
+							// calculate my part of the exchange probability
+							//myfrac=exp(lngE[index_akt]-lngE[i_new]); // g(myE)/g(otherE)
+							
+							myfrac=std::exp(myIngredients.getHGLnDOS().getCountAt(E_old) - myIngredients.getHGLnDOS().getCountAt(E_new)); //lnDOSenergyOld[0]+lnDOSenergyOld[1]-lnDOSenergyNew[0]-lnDOSenergyNew[1];
 
-							double p = 1.0;
-							if(diffLnDOS < 0.0)
-								p=std::exp(diffLnDOS);
-
-							if(rng.r250_drand() < p){
-								acceptExchange[0] = true;
-								acceptExchange[1] = true;
-							}
-							else
+						}
+						
+						if (mylocalid[swap_direction]<multiple) // I am receiver and calculator
+						{
+							// get my partners part of the exchange probability
+							MPI_Recv(&otherfrac,1,MPI_DOUBLE,swap_partner,2,mpi_local_comm[comm_id],&status);
+							
+							// calculate combined exchange probability and roll the dice
+							if ((myfrac>0.0)&&(otherfrac>0.0))
 							{
-								//reject exchange
+								//randx=(1.0*rng.r250_drand()/(RAND_MAX+1.0));
+								randx=rng.r250_drand();
+								wk=myfrac*otherfrac;
+								if (randx<wk) change=1;
 							}
+							
+							// tell my swap partner whether to exchange or not
+							MPI_Send(&change,1,MPI_INT,swap_partner,3,mpi_local_comm[comm_id]);
+						}
+						else // I just send my part of exchange probability and await decision
+						{
+							MPI_Send(&myfrac,1,MPI_DOUBLE,swap_partner,2,mpi_local_comm[comm_id]);
+							MPI_Recv(&change,1,MPI_INT,swap_partner,3,mpi_local_comm[comm_id],&status);
+						}
 						
-						#pragma  omp flush
-						}
-					}
-
-					/*if (tid == rnd_tid+1)
-					{
-						if((energyState[1] < energyWinEnd[0]) && (energyState[0] > energyWinStart[1]) )
+						// if decision was made to exchange configurations
+						if (change==1)
 						{
-							double diffLnDOS = lnDOSenergyOld[0]+lnDOSenergyOld[1]-lnDOSenergyNew[0]-lnDOSenergyNew[1];
-
-							double p = 1.0;
-							if(diffLnDOS < 0.0)
-								p=std::exp(diffLnDOS);
-
-							if(rng.r250_drand() < p)
-								acceptExchange[1] = true;
-						
-						#pragma  omp flush
-						}
-					}
-					*/
-				#pragma omp barrier
-					if (tid == rnd_tid)
-					{
-						if((acceptExchange[0] == true) && (acceptExchange[1] == true) )
-						{
-							std::cout  << std::endl << std::endl << std::endl << "swap molecules tid " <<  tid << std::endl << std::endl << std::endl;
-							myIngredients.modifyMolecules() = mol[1];
+							int *tmp_coordinates; // array containing the molecules coordinates process (send_buffer)
+							size_t tmp_coordinates_size = myIngredients.getMolecules().size();
+							tmp_coordinates = (int*)malloc(3*tmp_coordinates_size*sizeof(int));
+							
+							for(int i = 0; i < tmp_coordinates_size; i++)
+							{
+								tmp_coordinates[i*3+0] =  myIngredients.getMolecules()[i].getX();
+								tmp_coordinates[i*3+1] =  myIngredients.getMolecules()[i].getY();
+								tmp_coordinates[i*3+2] =  myIngredients.getMolecules()[i].getZ();
+							}
+							
+							/*{
+							stdoutlog=fopen(stdoutlogname,"a");
+							fprintf(stdoutlog,"Proc %3i, replica_exchange(): E_old=%f with lnDOS=%f, E_new=%f with lnDOS=%f from %3i on swap direction %i at time %i.\n",myid,E_old,myIngredients.getHGLnDOS().getCountAt(E_old), E_new, myIngredients.getHGLnDOS().getCountAt(E_new), swap_partner, swap_direction, myIngredients.getMolecules().getAge());
+							fprintf(stdoutlog,"Proc %3i, replica_exchange(): Mono0(%3i,%3i,%3i) and MonoEnd(%3i,%3i,%3i)\n",myid,tmp_coordinates[0], tmp_coordinates[1], tmp_coordinates[2], tmp_coordinates[3*(tmp_coordinates_size-1)], tmp_coordinates[3*(tmp_coordinates_size-1)+1], tmp_coordinates[3*(tmp_coordinates_size-1)+2]);
+							fclose(stdoutlog);
+							//MPI_Abort(MPI_COMM_WORLD,1);
+							}
+							*/
+							
+							// exchange conformations (incl. the 3 'special' polymer)
+							//MPI_Sendrecv_replace(&latticepoint[0],numberspins+2+1,MPI_INT,swap_partner,1,swap_partner,1,mpi_local_comm[comm_id],&status);
+							MPI_Sendrecv_replace(&tmp_coordinates[0],3*tmp_coordinates_size,MPI_INT,swap_partner,1,swap_partner,1,mpi_local_comm[comm_id],&status);
+							
+							for(int i = 0; i < tmp_coordinates_size; i++)
+							{
+								myIngredients.modifyMolecules()[i].setX(tmp_coordinates[i*3+0]);
+								myIngredients.modifyMolecules()[i].setY(tmp_coordinates[i*3+1]);
+								myIngredients.modifyMolecules()[i].setZ(tmp_coordinates[i*3+2]);
+							}
+							
 							myIngredients.synchronize();
-						#pragma  omp flush
+							
+							/*{
+							stdoutlog=fopen(stdoutlogname,"a");
+							fprintf(stdoutlog,"Proc %3i, replica_exchange(): E_old=%f with lnDOS=%f, E_new=%f with lnDOS=%f from %3i on swap direction %i at time %i.\n",myid,E_old,myIngredients.getHGLnDOS().getCountAt(E_old), E_new, myIngredients.getHGLnDOS().getCountAt(E_new), swap_partner, swap_direction, myIngredients.getMolecules().getAge());
+							fprintf(stdoutlog,"Proc %3i, replica_exchange(): Mono0(%3i,%3i,%3i) and MonoEnd(%3i,%3i,%3i)\n",myid,tmp_coordinates[0], tmp_coordinates[1], tmp_coordinates[2], tmp_coordinates[3*(tmp_coordinates_size-1)], tmp_coordinates[3*(tmp_coordinates_size-1)+1], tmp_coordinates[3*(tmp_coordinates_size-1)+2]);
+							fclose(stdoutlog);
+							//MPI_Abort(MPI_COMM_WORLD,1);
+							}
+							*/
+							free(tmp_coordinates);
+							
+							
+							// statistics
+							if (swap_partner>mylocalid[swap_direction]) exchangeright++;
+							else exchangeleft++;
 						}
-						else
-						{
-							myIngredients.rejectMove(myIngredients);
-							#pragma  omp flush
-						}
+						//else
+						//{
+							//myIngredients.rejectMove(myIngredients); // exchange was rejected
+						//}
 					}
-					if (tid == rnd_tid+1)
-					{
-						if( (acceptExchange[0] == true) && (acceptExchange[1] == true) )
-						{
-							std::cout << std::endl << std::endl << "swap molecules tid " <<  tid << std::endl << std::endl << std::endl;
-							myIngredients.modifyMolecules() = mol[0];
-							myIngredients.synchronize();
-						#pragma  omp flush
-						}
-						else
-						{
-							myIngredients.rejectMove(myIngredients);
-							#pragma  omp flush
-						}
-					}
+					
+					//return(change);
 
-				#pragma omp barrier
-
-
-
-				#pragma omp barrier
-
-
+				} // end of replica exchange
+				//std::cout << "rsync all threads after RE" << myid << std::endl;
+				MPI_Barrier(MPI_COMM_WORLD);
+				
+				//flat = 0;
+				
+				
+				
 				//if(UWL.histogramConverged() && UWL.isFirstConverged())
-				if(UWL.hasSufficientStatistics() && UWL.isFirstConverged())
+				/*if(UWL.hasSufficientStatistics())
 				{
 					UWL.outputConvergedIteration();
 
-					UWL.unsetFirstConverged();
-
-				#pragma omp atomic
-					counterCovergedIteration = counterCovergedIteration+1;
-				}
-				#pragma  omp flush(counterCovergedIteration)
-				#pragma  omp flush
-
-				std::cout << std::endl << std::endl << "tid" <<  tid << " counterCovergedIteration -> " << counterCovergedIteration  << " / " << omp_get_num_threads() <<  std::endl << std::endl << std::endl;
-
-				#pragma omp barrier
-
-			} while(counterCovergedIteration != omp_get_num_threads());//!UWL.histogramConverged());
-			//iteration coverged
-			#pragma omp barrier
-
-			#pragma omp single
-					{
-						counterCovergedIteration=0;
-			#pragma  omp flush(counterCovergedIteration)
-					}
-			#pragma omp barrier
-			#pragma  omp flush
-
-
-			//run as long for each interation
-			#pragma omp barrier
-			//std::cout << std::endl << std::endl << "tid" <<  tid << " NextIterStart: counterCovergedIteration -> " << counterCovergedIteration  << " / " << omp_get_num_threads() <<  std::endl << std::endl << std::endl;
-
-
-			//reset for new iteration
-			UWL.doResetForNextIteration();
-
-		} //while( !(myIngredients.getModificationFactor() < std::exp(std::pow(10,-8)) ) );
-
-		// all iteration converged and f < exp(10-8)
-		#pragma omp barrier
-
+					
+				}*/
+				
+				// get the recent decision of sufficient statistics
+				hasFullStatisics_recent = UWL.hasSufficientStatistics() ? 1 : 0;
+				
+					
+				// communicate the LOWEST progess to ALL process: 0->not all have good statistics
+				MPI_Allreduce(&hasFullStatisics_recent,&hasFullStatisics_slowest,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD);
+					
+				
+			
+				
+			} //while(flat != 1);//omp_get_num_threads());//!UWL.histogramConverged());
+			
+			
+			
+		// termination for ALL processes (NOT windows) only if ALL process reached the enough statistics
+		}while( hasFullStatisics_slowest != 1 );//std::exp(std::pow(10,-8)) ) );
+		
+//#pragma omp barrier
+		// here all threads are sync and in therir desried window
+		// run the simulations
+		// output the final logDOS
 		UWL.cleanup();
-
-
-
-		/*
-		TaskManager taskmanager;
-		taskmanager.addUpdater(new UpdaterReadBfmFile<Ing>(infile,myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE),0);
-		//here you can choose to use MoveLocalBcc instead. Careful though: no real tests made yet
-		//(other than for latticeOccupation, valid bonds, frozen monomers...)
-		//taskmanager.addUpdater(new UpdaterSimpleSimulator<Ing,MoveLocalSc>(myIngredients,save_interval));
-
-		taskmanager.addUpdater(new UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc>(myIngredients,
-				save_interval,
-				bias_update_interval, modFactor, max_mcs, minWinThread, maxWinThread),
-				1);
-
-		if (tid == 0){
-			if(filedump)
-				taskmanager.addAnalyzer(new AnalyzerWriteBfmFile<Ing>(outfile,myIngredients));
-		}
-
-		taskmanager.initialize();
-		taskmanager.run();
-		taskmanager.cleanup();
-
-		*/
-
-		//if (tid == 0)
+		
 		{
 			std::stringstream ssprefixWindow;
-			ssprefixWindow << "_idxWin" << std::setw(2) << std::setfill('0') << tid;
+			ssprefixWindow << "_idxWin" << std::setw(4) << std::setfill('0') << tid;
 			outfile=infile+ssprefixWindow.str()+"_final";
 
 			AnalyzerWriteBfmFile<Ing> ABFM(outfile,myIngredients);
@@ -597,10 +798,15 @@ int main(int argc, char* argv[])
 			ABFM.cleanup();
 		}
 
+		
+
 	}
 
 	}
 	catch(std::exception& err){std::cerr<<err.what();}
+	
+	MPI_Finalize(); // Finish up MPI
+	
 	return 0;
   
 }

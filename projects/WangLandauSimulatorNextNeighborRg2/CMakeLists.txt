@@ -8,18 +8,22 @@ if (NOT DEFINED LEMONADE_LIBRARY_DIR)
 message("LEMONADE_LIBRARY_DIR is not provided. If build fails, use -DLEMONADE_LIBRARY_DIR=/path/to/LeMonADE/lib/ or install to default location")
 endif()
 
-include_directories (${LEMONADE_INCLUDE_DIR})
+find_package(MPI)
+
+include_directories (${LEMONADE_INCLUDE_DIR} ${MPI_INCLUDE_PATH} ${MPI_CXX_INCLUDE_PATH})
 link_directories (${LEMONADE_LIBRARY_DIR})
 
+#find_package(OpenMP)
+#if (OPENMP_FOUND)
+    #set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    #set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+#endif()
 
-find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
+add_executable(WangLandauSimulatorNextNeighborMPI_Rg2 mainWangLandauSimulatorNextNeighborRg2.cpp)
 
-add_executable(WangLandauSimulatorNextNeighborOpenMP_Rg2 mainWangLandauSimulatorNextNeighborRg2.cpp)
+target_link_libraries(WangLandauSimulatorNextNeighborMPI_Rg2 LeMonADE ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES} )
 
-target_link_libraries(WangLandauSimulatorNextNeighborOpenMP_Rg2 LeMonADE )
+
+
 
