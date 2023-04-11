@@ -477,19 +477,29 @@ int main(int argc, char* argv[])
             std::cout << "Thread " << tid << " with window [ " <<   minWinThread << " ; " << maxWinThread << " ] : read-in idx-file" << std::endl;
 			std::stringstream ssprefixWindowBFM;
 			ssprefixWindowBFM << "_idxWin" << std::setw(4) << std::setfill('0') << tid;
-
+			try{
 			UpdaterReadBfmFile<Ing> UR(std::string(infile + ssprefixWindowBFM.str() + ".bfm"),myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE);
+			
+			
 			UR.initialize();
 			UR.execute();
 			UR.cleanup();
+			}
+			catch(std::exception& err){
+				std::cerr<<"ERROR in File ReadIn for Windows: " << std::endl << err.what() << std::endl << " Aborting all MPI-process";
+				 MPI_Abort(MPI_COMM_WORLD, 1);
+				}
 
 			myIngredients.setName(infile);
 			myIngredients.modifyMolecules().setAge(0); // reset the clock within the file
 		}
 		
+		myIngredients.modifyMolecules().setAge(0); // reset the clock within the file
 		
 		// set parameter for Wang-Landau-Blender algorithm
 		myIngredients.setComputationalParameterBLENDER(CZero, OneOverN);
+
+		myIngredients.synchronize();
 
 		UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc> UWL(myIngredients,
 						save_interval,
@@ -510,7 +520,8 @@ int main(int argc, char* argv[])
 		// run as long to reach desired window
 		do
 		{
-			UWL.execute();
+			//UWL.execute();
+			UWL.executeFindWindow();
 		} while(!myIngredients.isEnergyInWindow());
 
 		myIngredients.modifyMolecules().setAge(0); // reset the clock within the file
@@ -560,6 +571,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 
 				//for(int count = 0; count < 1; count++)
 				UWL.execute();
+				//myIngredients.updateHGLnDOSBLENDER();
 
 				//#pragma omp barrier
 				// workaround for broadcasting the swap direction to all processes
@@ -728,7 +740,8 @@ MPI_Barrier(MPI_COMM_WORLD);
 								tmp_coordinates[i*3+2] =  myIngredients.getMolecules()[i].getZ();
 							}
 							
-							/*{
+							/*
+							{
 							stdoutlog=fopen(stdoutlogname,"a");
 							fprintf(stdoutlog,"Proc %3i, replica_exchange(): E_old=%f with lnDOS=%f, E_new=%f with lnDOS=%f from %3i on swap direction %i at time %i.\n",myid,E_old,myIngredients.getHGLnDOS().getCountAt(E_old), E_new, myIngredients.getHGLnDOS().getCountAt(E_new), swap_partner, swap_direction, myIngredients.getMolecules().getAge());
 							fprintf(stdoutlog,"Proc %3i, replica_exchange(): Mono0(%3i,%3i,%3i) and MonoEnd(%3i,%3i,%3i)\n",myid,tmp_coordinates[0], tmp_coordinates[1], tmp_coordinates[2], tmp_coordinates[3*(tmp_coordinates_size-1)], tmp_coordinates[3*(tmp_coordinates_size-1)+1], tmp_coordinates[3*(tmp_coordinates_size-1)+2]);
@@ -736,6 +749,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 							//MPI_Abort(MPI_COMM_WORLD,1);
 							}
 							*/
+							
 							
 							// exchange conformations (incl. the 3 'special' polymer)
 							//MPI_Sendrecv_replace(&latticepoint[0],numberspins+2+1,MPI_INT,swap_partner,1,swap_partner,1,mpi_local_comm[comm_id],&status);
@@ -750,7 +764,8 @@ MPI_Barrier(MPI_COMM_WORLD);
 							
 							myIngredients.synchronize();
 							
-							/*{
+							/*
+							{
 							stdoutlog=fopen(stdoutlogname,"a");
 							fprintf(stdoutlog,"Proc %3i, replica_exchange(): E_old=%f with lnDOS=%f, E_new=%f with lnDOS=%f from %3i on swap direction %i at time %i.\n",myid,E_old,myIngredients.getHGLnDOS().getCountAt(E_old), E_new, myIngredients.getHGLnDOS().getCountAt(E_new), swap_partner, swap_direction, myIngredients.getMolecules().getAge());
 							fprintf(stdoutlog,"Proc %3i, replica_exchange(): Mono0(%3i,%3i,%3i) and MonoEnd(%3i,%3i,%3i)\n",myid,tmp_coordinates[0], tmp_coordinates[1], tmp_coordinates[2], tmp_coordinates[3*(tmp_coordinates_size-1)], tmp_coordinates[3*(tmp_coordinates_size-1)+1], tmp_coordinates[3*(tmp_coordinates_size-1)+2]);
@@ -758,6 +773,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 							//MPI_Abort(MPI_COMM_WORLD,1);
 							}
 							*/
+							
 							free(tmp_coordinates);
 							
 							
@@ -942,17 +958,208 @@ MPI_Barrier(MPI_COMM_WORLD);
 					//reset for new iteration
 					UWL.doResetForNextIteration();
 					
-					{
-						stdoutlog=fopen(stdoutlogname,"a");
-						fprintf(stdoutlog,"Proc %3i, NextIterStart with %s.\n",myid, myIngredients.using1tMethod() ? "1/t" : "standard f^0.5" );
-						fprintf(stdoutlog,"Proc %3i: tryleft: %i, exchangeleft %i (Akzeptanzleft:%.2lf) <--> tryright: %i, exchangeright %i (Akzeptanzright:%.2lf)\n",myid,tryleft,exchangeleft,(double)exchangeleft/(double)tryleft,tryright,exchangeright,(double)exchangeright/(double)tryright);
+					// {
+					// 	stdoutlog=fopen(stdoutlogname,"a");
+					// 	fprintf(stdoutlog,"Proc %3i, NextIterStart with %s.\n",myid, myIngredients.using1tMethod() ? "1/t" : "standard f^0.5" );
+					// 	fprintf(stdoutlog,"Proc %3i: tryleft: %i, exchangeleft %i (Akzeptanzleft:%.2lf) <--> tryright: %i, exchangeright %i (Akzeptanzright:%.2lf)\n",myid,tryleft,exchangeleft,(double)exchangeleft/(double)tryleft,tryright,exchangeright,(double)exchangeright/(double)tryright);
 						
-						fclose(stdoutlog);
-						//MPI_Abort(MPI_COMM_WORLD,1);
-					}
+					// 	fclose(stdoutlog);
+					// 	//MPI_Abort(MPI_COMM_WORLD,1);
+					// }
+
 					
 				}
 				*/
+
+				// this is only a criterion for all 'multiple' walker in one window to exchange and  add histogram for visit sites
+				{
+					
+					// merge visit sites estimators from multiple walkers in the same energy window
+					{
+						// create tmp array for LnDOS - recent process
+						double *tmp_lnDOS; // array containing the lnDOS
+						size_t tmp_lnDOS_size = myIngredients.getVisitsEnergyStates().getVectorValues().size(); //.getHGLnDOS().getVectorValues().size();
+						tmp_lnDOS = (double*)malloc(tmp_lnDOS_size*sizeof(double));
+						
+						// create tmp array buffer for LnDOS accumulation
+						double *tmp_lnDOS_buf; // array containing the lnDOS
+						//size_t tmp_lnDOS_size_buf = myIngredients.getHGLnDOS().getVectorValues().size(); // same as tmp_lnDOS_size
+						tmp_lnDOS_buf = (double*)malloc(tmp_lnDOS_size*sizeof(double));
+						
+						//copy HGLnDOS into ingredients
+						//myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+						
+						//for(size_t n=0;n<myIngredients.getHGLnDOS().getVectorValues().size();n++){
+						for(size_t n=0;n<myIngredients.getVisitsEnergyStates().getVectorValues().size();n++){
+							
+							tmp_lnDOS[n] = myIngredients.getVisitsEnergyStates().getVectorValues().at(n);
+							//if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+							//	myIngredients.modifyHGLnDOS().addValue(in.getHGLnDOS().getCenterOfBin(n), in.getHGLnDOS().getVectorValues()[n].ReturnM1());
+						}
+						
+						
+						
+						
+						stdoutlog=fopen(stdoutlogname,"a");
+						if (myid%multiple==0) // 'root' in energy window, receive individual lng(E) and send merged lng(E)
+						{
+							for (int i=1; i<multiple; i++)
+							{
+								MPI_Recv(&tmp_lnDOS_buf[0],tmp_lnDOS_size,MPI_DOUBLE,myid+i,77,MPI_COMM_WORLD,&status); // get other dens. of states
+								//fprintf(stdoutlog,"Proc %i: Received lngE from Proc. %i\n",myid,myid+i);
+								
+								for (int j=0; j<tmp_lnDOS_size; j++) 
+								{ 
+									tmp_lnDOS[j]+=tmp_lnDOS_buf[j]; // sum up for average
+								}
+							}
+							/*for (int j=0; j<tmp_lnDOS_size; j++)
+							{
+								tmp_lnDOS[j]/=(double)multiple; // normalize -> average
+							}
+							*/
+
+							for (int i=1; i<multiple; i++)
+							{
+								MPI_Send(&tmp_lnDOS[0],tmp_lnDOS_size,MPI_DOUBLE,myid+i,99,MPI_COMM_WORLD);
+								//fprintf(stdoutlog,"Proc %i: Sent merged lngE to Proc. %i\n",myid,myid+i);
+							}
+
+							myIngredients.modifyVisitsEnergyStates().reset(min_histogram, max_histogram, bins_histogram);
+							
+							for(size_t n=0;n<tmp_lnDOS_size;n++){
+								
+								//tmp_lnDOS[n] = myIngredients.getHGLnDOS().getVectorValues()[n].ReturnM1();
+								//if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+								
+								// NOTE: as a result there are NOW entries for ALL energies (ALSO OUTSIDE THE ENERGY WINDOW)
+								//myIngredients.modifyHGLnDOS().addValue(myIngredients.getHGLnDOS().getCenterOfBin(n), tmp_lnDOS_buf[n]);
+								myIngredients.modifyVisitsEnergyStates().addValue(myIngredients.getVisitsEnergyStates().getCenterOfBin(n), tmp_lnDOS_buf[n]);
+							}
+						}
+						else // send individual lng(E) and receive merged lng(E)
+						{
+							MPI_Send(&tmp_lnDOS[0],tmp_lnDOS_size,MPI_DOUBLE,myid-(myid%multiple),77,MPI_COMM_WORLD);
+							//fprintf(stdoutlog,"Proc %i: Sent lngE to Proc. %i\n",myid,myid-(myid%multiple));
+							MPI_Recv(&tmp_lnDOS_buf[0],tmp_lnDOS_size,MPI_DOUBLE,myid-(myid%multiple),99,MPI_COMM_WORLD,&status);
+							//fprintf(stdoutlog,"Proc %i: Received merged lngE from Proc. %i\n",myid,myid-(myid%multiple));
+							
+							//for (int j=0; j<hist_size; j++) lngE[j]=lngE_buf[j]; // replace individual lngE (could be done directly, yes)
+							
+							//copy HGLnDOS into ingredients - replace individual lngE
+							//myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+							myIngredients.modifyVisitsEnergyStates().reset(min_histogram, max_histogram, bins_histogram);
+							
+							for(size_t n=0;n<tmp_lnDOS_size;n++){
+								
+								//tmp_lnDOS[n] = myIngredients.getHGLnDOS().getVectorValues()[n].ReturnM1();
+								//if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+								
+								// NOTE: as a result there are NOW entries for ALL energies (ALSO OUTSIDE THE ENERGY WINDOW)
+								//myIngredients.modifyHGLnDOS().addValue(myIngredients.getHGLnDOS().getCenterOfBin(n), tmp_lnDOS_buf[n]);
+								myIngredients.modifyVisitsEnergyStates().addValue(myIngredients.getVisitsEnergyStates().getCenterOfBin(n), tmp_lnDOS_buf[n]);
+							}
+						}
+						fclose(stdoutlog);
+						
+						free(tmp_lnDOS);
+						free(tmp_lnDOS_buf);
+					}
+
+					// merge g(E) estimators from multiple walkers in the same energy window
+					{
+						// create tmp array for LnDOS - recent process
+						double *tmp_lnDOS; // array containing the lnDOS
+						size_t tmp_lnDOS_size = myIngredients.getHGLnDOS().getVectorValues().size();
+						tmp_lnDOS = (double*)malloc(tmp_lnDOS_size*sizeof(double));
+						
+						// create tmp array buffer for LnDOS accumulation
+						double *tmp_lnDOS_buf; // array containing the lnDOS
+						//size_t tmp_lnDOS_size_buf = myIngredients.getHGLnDOS().getVectorValues().size(); // same as tmp_lnDOS_size
+						tmp_lnDOS_buf = (double*)malloc(tmp_lnDOS_size*sizeof(double));
+						
+						//copy HGLnDOS into ingredients
+						//myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+						
+						for(size_t n=0;n<myIngredients.getHGLnDOS().getVectorValues().size();n++){
+							
+							tmp_lnDOS[n] = myIngredients.getHGLnDOS().getVectorValues()[n].ReturnM1();
+							//if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+							//	myIngredients.modifyHGLnDOS().addValue(in.getHGLnDOS().getCenterOfBin(n), in.getHGLnDOS().getVectorValues()[n].ReturnM1());
+						}
+						
+						
+						
+						
+						stdoutlog=fopen(stdoutlogname,"a");
+						if (myid%multiple==0) // 'root' in energy window, receive individual lng(E) and send merged lng(E)
+						{
+							for (int i=1; i<multiple; i++)
+							{
+								MPI_Recv(&tmp_lnDOS_buf[0],tmp_lnDOS_size,MPI_DOUBLE,myid+i,77,MPI_COMM_WORLD,&status); // get other dens. of states
+								//fprintf(stdoutlog,"Proc %i: Received lngE from Proc. %i\n",myid,myid+i);
+								
+								for (int j=0; j<tmp_lnDOS_size; j++) 
+								{ 
+									tmp_lnDOS[j]+=tmp_lnDOS_buf[j]; // sum up for average
+								}
+							}
+							
+							for (int j=0; j<tmp_lnDOS_size; j++)
+							{
+								tmp_lnDOS[j]/=(double)multiple; // normalize -> average
+							}
+							
+
+							for (int i=1; i<multiple; i++)
+							{
+								MPI_Send(&tmp_lnDOS[0],tmp_lnDOS_size,MPI_DOUBLE,myid+i,99,MPI_COMM_WORLD);
+								//fprintf(stdoutlog,"Proc %i: Sent merged lngE to Proc. %i\n",myid,myid+i);
+							}
+
+							//copy HGLnDOS into ingredients - replace individual lngE
+							myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+							
+							for(size_t n=0;n<tmp_lnDOS_size;n++){
+								
+								//tmp_lnDOS[n] = myIngredients.getHGLnDOS().getVectorValues()[n].ReturnM1();
+								//if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+								
+								// NOTE: as a result there are NOW entries for ALL energies (ALSO OUTSIDE THE ENERGY WINDOW)
+								myIngredients.modifyHGLnDOS().addValue(myIngredients.getHGLnDOS().getCenterOfBin(n), tmp_lnDOS_buf[n]);
+							}
+
+						}
+						else // send individual lng(E) and receive merged lng(E)
+						{
+							MPI_Send(&tmp_lnDOS[0],tmp_lnDOS_size,MPI_DOUBLE,myid-(myid%multiple),77,MPI_COMM_WORLD);
+							//fprintf(stdoutlog,"Proc %i: Sent lngE to Proc. %i\n",myid,myid-(myid%multiple));
+							MPI_Recv(&tmp_lnDOS_buf[0],tmp_lnDOS_size,MPI_DOUBLE,myid-(myid%multiple),99,MPI_COMM_WORLD,&status);
+							//fprintf(stdoutlog,"Proc %i: Received merged lngE from Proc. %i\n",myid,myid-(myid%multiple));
+							
+							//for (int j=0; j<hist_size; j++) lngE[j]=lngE_buf[j]; // replace individual lngE (could be done directly, yes)
+							
+							//copy HGLnDOS into ingredients - replace individual lngE
+							myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+							
+							for(size_t n=0;n<tmp_lnDOS_size;n++){
+								
+								//tmp_lnDOS[n] = myIngredients.getHGLnDOS().getVectorValues()[n].ReturnM1();
+								//if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+								
+								// NOTE: as a result there are NOW entries for ALL energies (ALSO OUTSIDE THE ENERGY WINDOW)
+								myIngredients.modifyHGLnDOS().addValue(myIngredients.getHGLnDOS().getCenterOfBin(n), tmp_lnDOS_buf[n]);
+							}
+						}
+						fclose(stdoutlog);
+						
+						free(tmp_lnDOS);
+						free(tmp_lnDOS_buf);
+					}
+
+					
+				}
+
 					
 					// get the recent modification factor
 					//lnf_recent = myIngredients.getModificationFactor(myIngredients);
@@ -968,6 +1175,8 @@ MPI_Barrier(MPI_COMM_WORLD);
 					MPI_Allreduce(&simTime_recent,&simTime_slowest,1,MPI_UINT64_T,MPI_MIN,MPI_COMM_WORLD);
 			
 				
+				//update the HGLnDOS with BLENDER
+				myIngredients.updateHGLnDOSBLENDER();
 			} //while(flat != 1);//omp_get_num_threads());//!UWL.histogramConverged());
 			
 			//} while(counterCovergedIteration != numprocs);//omp_get_num_threads());//!UWL.histogramConverged());
@@ -991,6 +1200,13 @@ MPI_Barrier(MPI_COMM_WORLD);
 
 		//UWL.cleanup();
 
+		{
+			stdoutlog=fopen(stdoutlogname,"a");
+			fprintf(stdoutlog,"Proc %3i: tryleft: %i, exchangeleft %i (Akzeptanzleft:%.2lf) <--> tryright: %i, exchangeright %i (Akzeptanzright:%.2lf)\n",myid,tryleft,exchangeleft,(double)exchangeleft/(double)tryleft,tryright,exchangeright,(double)exchangeright/(double)tryright);
+						
+			fclose(stdoutlog);
+						//MPI_Abort(MPI_COMM_WORLD,1);
+		}
 
 
 		/*

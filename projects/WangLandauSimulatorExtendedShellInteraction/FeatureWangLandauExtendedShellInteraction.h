@@ -319,7 +319,7 @@ public:
 			// workaround to avoid boundary effects of stationary configuration
 			// without monomer movement as the replica exchange has no partner
 			// and therefore overshot of the HGLnDOS
-			int stupid_counter = 0;
+			// int stupid_counter = 0;
 			
 			for(size_t n=0;n<HG_LnDOS.getNBins();n++){
 				
@@ -327,8 +327,8 @@ public:
 				{
 					logA_tmp += std::exp(HG_LnDOS.getCountAt(HG_LnDOS.getCenterOfBin(n)) - logA_max_tmp);
 					
-					if(HG_VisitsEnergyStates.getCountAt(HG_LnDOS.getCenterOfBin(n)) > 0)
-                      stupid_counter++;
+					//if(HG_VisitsEnergyStates.getCountAt(HG_LnDOS.getCenterOfBin(n)) > 0)
+                     // stupid_counter++;
 
 				}
 			}
@@ -338,7 +338,7 @@ public:
 	
 			for(size_t n=0;n<HG_LnDOS.getNBins();n++){
 				
-				if( (HG_LnDOS.getCenterOfBin(n) >= minWin) && (HG_LnDOS.getCenterOfBin(n) <= maxWin) && (stupid_counter > 5) )
+				if( (HG_LnDOS.getCenterOfBin(n) >= minWin) && (HG_LnDOS.getCenterOfBin(n) <= maxWin) )
 				{
 					//double modFactorValue = 1.0+HG_VisitsEnergyStates.getCountAt(HG_LnDOS.getCenterOfBin(n))*std::exp(std::log(1000000.0)-0.1*logA);
 					double modFactorValue = 1.0+HG_VisitsEnergyStates.getCountAt(HG_LnDOS.getCenterOfBin(n))*std::exp(std::log(CZero)-OneOverN*logA);

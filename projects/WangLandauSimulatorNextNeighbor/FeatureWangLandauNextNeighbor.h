@@ -220,6 +220,7 @@ public:
 		ShellInteractionType = shellType;
 	}
 	
+	/*
 	void initBLENDER()
 	{
 		// find maximum LnDOS
@@ -244,6 +245,7 @@ public:
 			}
 		}
 	}
+	*/
 	
 	void updateHGLnDOSBLENDER()
 	{
@@ -264,7 +266,7 @@ public:
 			// workaround to avoid boundary effects of stationary configuration
 			// without monomer movement as the replica exchange has no partner
 			// and therefore overshot of the HGLnDOS
-			int stupid_counter = 0;
+			//int stupid_counter = 0;
 			
 			for(size_t n=0;n<HG_LnDOS.getNBins();n++){
 				
@@ -272,8 +274,8 @@ public:
 				{
 					logA_tmp += std::exp(HG_LnDOS.getCountAt(HG_LnDOS.getCenterOfBin(n)) - logA_max_tmp);
 					
-					if(HG_VisitsEnergyStates.getCountAt(HG_LnDOS.getCenterOfBin(n)) > 0)
-                      stupid_counter++;
+					//if(HG_VisitsEnergyStates.getCountAt(HG_LnDOS.getCenterOfBin(n)) > 0)
+                    //  stupid_counter++;
 				}
 			}
 			
@@ -282,7 +284,7 @@ public:
 	
 			for(size_t n=0;n<HG_LnDOS.getNBins();n++){
 				
-				if( (HG_LnDOS.getCenterOfBin(n) >= minWin) && (HG_LnDOS.getCenterOfBin(n) <= maxWin) && (stupid_counter > 5) )
+				if( (HG_LnDOS.getCenterOfBin(n) >= minWin) && (HG_LnDOS.getCenterOfBin(n) <= maxWin)  )
 				{
 					double modFactorValue = 1.0+HG_VisitsEnergyStates.getCountAt(HG_LnDOS.getCenterOfBin(n))*std::exp(std::log(CZero)-OneOverN*logA);
 			
@@ -376,8 +378,8 @@ private:
   int numBinsInWindow;
   double modificationFactorThesholdUsing1t;
   
-  double logA_max;
-  double sumA;
+  //double logA_max;
+  //double sumA;
   
   // computational parameters - see https://doi.org/10.1103/PhysRevE.102.063304
   double CZero;
@@ -853,6 +855,7 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::synchronize(IngredientsTyp
 
 	std::cout << "Synchronize FeatureWangLandauNextNeighbor -> E = " << Energy << std::endl;
 	
+	/*
 	// find maximum LnDOS
 	logA_max = HG_LnDOS.getCountAt(minWin+HG_LnDOS.getBinwidth()); //1.0 
 	
@@ -880,7 +883,7 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::synchronize(IngredientsTyp
 	//logA = std::log(logA_tmp) + logA_max;
 	
 	std::cout << "Synchronize: logA_max " << logA_max << "  and sumA "  << sumA << std::endl;
-	
+	*/
 }
 
 /**

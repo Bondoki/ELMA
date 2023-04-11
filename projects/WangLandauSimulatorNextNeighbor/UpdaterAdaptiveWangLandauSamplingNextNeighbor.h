@@ -110,7 +110,7 @@ public:
 	 */
 	bool execute();
 	
-	
+	bool executeFindWindow();
 	/**
 	 * @brief This function is called \a once in the beginning of the TaskManager.
 	 *
@@ -412,6 +412,102 @@ nsteps(steps)
 	ingredients.setModificationFactorUsing1t(_modificationFactorThesholdUsing1t);
 }
  
+//execute simulation
+template<class IngredientsType, class MoveType>
+bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::executeFindWindow()
+{
+	//some output for simulation performance and state
+	time_t startTimer = std::time(NULL); //in seconds
+	uint64_t systemAge=ingredients.getMolecules().getAge();
+	std::cout<<"mcs "<<systemAge 
+		 << " passed time " << ((std::difftime(std::time(NULL), startTimer)) ) <<std::endl;
+	
+	
+	
+	//simulation loop
+	if(writeHistogramProgress==true)
+				{
+					//shiftHGLnDOS();
+
+					 dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_tmp_histogram.dat"));
+					 //dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_tmp_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
+					 dumpTotalHistogram(std::string(ingredients.getName() + prefixWindow + "_tmp_totalhistogram.dat"));
+					 //std::cout << "dump HGLnDOS " << ingredients.getMinWin() << "   " << ingredients.getMaxWin() << std::endl;
+				}
+				
+	//shiftHGLnDOS();
+	
+	resetHistogram();
+	//ingredients.initBLENDER();
+	for(int n=0;n<nsteps;n++){
+		
+		//update bias potential if the histogram has converged well enough
+		if(counter_nStepsBeforeBiasCheck==nStepsBeforeBiasCheck){
+			counter_nStepsBeforeBiasCheck=0;
+			if(writeHistogramProgress==true)
+				{
+					//shiftHGLnDOS();
+
+					 //dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_tmp_histogram.dat"));
+					 dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_tmp_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
+					 std::cout << "dump HGLnDOS " << ingredients.getMinWin() << "   " << ingredients.getMaxWin() << std::endl;
+				}
+			
+
+		}
+		
+		
+		//std::cout << "1MCS";
+		//do one monte carlo sweep
+		for(int m=0;m<ingredients.getMolecules().size();m++)
+		{
+			move.init(ingredients);
+			
+			if(move.check(ingredients)==true)
+			{
+				move.apply(ingredients);
+			}
+			else 
+			{ 
+				ingredients.rejectMove(ingredients);
+			}
+		}
+		checkForFirstWindowAppearance();
+		
+		//get update on histogram after every sweep. more often would 
+		//probably not make much sense, because the chain diffuses slowly
+		try{
+			if(counter_nStepsBeforeHistogramUpdate==nStepsBeforeHistogramUpdate){
+				counter_nStepsBeforeHistogramUpdate=0;
+				//histogram.addValue(ingredients.getInternalEnergy(ingredients));
+			}
+			
+		}
+		catch(std::runtime_error& e){
+			std::stringstream errormessage;
+			errormessage<<"UpdaterAdaptiveWangLandauSamplingNextNeighbor: error while altering histogram.\n"
+			<<"original message was:\n"<<e.what()<<std::endl;
+			throw std::runtime_error(errormessage.str());
+		}
+		
+		//increment counter
+		counter_nStepsBeforeBiasCheck++;
+		counter_nStepsBeforeHistogramUpdate++;
+		
+	}
+	ingredients.updateHGLnDOSBLENDER();
+	
+	
+	//update age of system and give some more output on simulation progress
+	ingredients.modifyMolecules().setAge(ingredients.modifyMolecules().getAge()+nsteps);
+	std::cout<<"mcs "<<ingredients.getMolecules().getAge() << " with " << (((1.0*nsteps)*ingredients.getMolecules().size())/(std::difftime(std::time(NULL), startTimer)) ) << " [attempted moves/s]" <<std::endl;
+	std::cout<<"mcs "<<ingredients.getMolecules().getAge() << " passed time " << ((std::difftime(std::time(NULL), startTimer)) ) << " with " << nsteps << " MCS "<<std::endl;
+	std::cout<<"mcs "<<ingredients.getMolecules().getAge() << " with energy " << ingredients.getInternalEnergyCurrentConfiguration(ingredients) <<std::endl;
+
+
+	
+	return true;
+}
  
 //execute simulation
 template<class IngredientsType, class MoveType>
@@ -515,7 +611,7 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 		counter_nStepsBeforeHistogramUpdate++;
 		
 	}
-	ingredients.updateHGLnDOSBLENDER();
+	//ingredients.updateHGLnDOSBLENDER();
 	
 	checkForFirstWindowAppearance();
 	//update age of system and give some more output on simulation progress
