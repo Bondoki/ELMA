@@ -471,8 +471,10 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 			{ 
 				ingredients.rejectMove(ingredients);
 			}
+
+			checkForFirstWindowAppearance();
 		}
-		checkForFirstWindowAppearance();
+		
 		
 		//get update on histogram after every sweep. more often would 
 		//probably not make much sense, because the chain diffuses slowly
@@ -654,7 +656,7 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::in
 template<class IngredientsType, class MoveType>
 void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::checkForFirstWindowAppearance()
 {
-	if( (ingredients.isEnergyInWindow() == false ) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) <= maxWindow) && (ingredients.getInternalEnergyCurrentConfiguration(ingredients) >= minWindow) )
+	if( (ingredients.isEnergyInWindow() == false ) && ((ingredients.getInternalEnergyCurrentConfiguration(ingredients)+2*ingredients.getHGLnDOS().getBinwidth()) < maxWindow) && ((ingredients.getInternalEnergyCurrentConfiguration(ingredients)-2*ingredients.getHGLnDOS().getBinwidth()) > minWindow) )
 			{
 				std::cout << "RW is in energy window: [" << minWindow << " ; " << maxWindow << "] with " <<  ingredients.getInternalEnergyCurrentConfiguration(ingredients) << std::endl;
 				// RW is in energy window
