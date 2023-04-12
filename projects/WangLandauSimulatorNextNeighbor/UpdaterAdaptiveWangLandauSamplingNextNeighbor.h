@@ -472,9 +472,10 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 				ingredients.rejectMove(ingredients);
 			}
 
-			checkForFirstWindowAppearance();
+			
 		}
 		
+		checkForFirstWindowAppearance();
 		
 		//get update on histogram after every sweep. more often would 
 		//probably not make much sense, because the chain diffuses slowly

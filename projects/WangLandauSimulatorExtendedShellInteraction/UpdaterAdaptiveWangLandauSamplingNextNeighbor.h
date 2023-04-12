@@ -473,10 +473,10 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 				ingredients.rejectMove(ingredients);
 			}
 
-			checkForFirstWindowAppearance();
+			
 		}
 
-		
+		checkForFirstWindowAppearance();
 		
 
 
