@@ -497,6 +497,12 @@ int main(int argc, char* argv[])
 
 		myIngredients.modifyMolecules().setAge(0); // reset the clock within the file
 		
+		// this is neccessary if we start with 1/t algorithm to correct the time
+		if(myIngredients.using1tMethod()==true)
+		{
+			myIngredients.setModificationFactor(myIngredients, modFactor);
+		}
+		
 		 MPI_Barrier(MPI_COMM_WORLD);
 		 
 		 
@@ -792,6 +798,10 @@ MPI_Barrier(MPI_COMM_WORLD);
 				}
 				else // otherwise check if we already reached the 1/t-threshold
 				{
+					// everything is "flat" in the 1/t allowing merging of lnDOS
+					flat = 1;
+					
+					// terminate the program?
 					if(myIngredients.getModificationFactor(myIngredients) <= modFactorTheshold)
 					{
 						// this enures that only once the final state has output
@@ -881,10 +891,22 @@ MPI_Barrier(MPI_COMM_WORLD);
 							{
 								tmp_lnDOS[j]/=(double)multiple; // normalize -> average
 							}
-							for (int i=1; i<multiple; i++)
+							for (int i=1; i<multiple; i++) // send result to all other
 							{
 								MPI_Send(&tmp_lnDOS[0],tmp_lnDOS_size,MPI_DOUBLE,myid+i,99,MPI_COMM_WORLD);
 								fprintf(stdoutlog,"Proc %i: Sent merged lngE to Proc. %i\n",myid,myid+i);
+							}
+							
+							//copy HGLnDOS into ingredients - replace the master lngE by average
+							myIngredients.modifyHGLnDOS().reset(min_histogram, max_histogram, bins_histogram);
+							
+							for(size_t n=0;n<tmp_lnDOS_size;n++){
+								
+								//tmp_lnDOS[n] = myIngredients.getHGLnDOS().getVectorValues()[n].ReturnM1();
+								//if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
+								
+								// NOTE: as a result there are NOW entries for ALL energies (ALSO OUTSIDE THE ENERGY WINDOW)
+								myIngredients.modifyHGLnDOS().addValue(myIngredients.getHGLnDOS().getCenterOfBin(n), tmp_lnDOS[n]);
 							}
 						}
 						else // send individual lng(E) and receive merged lng(E)
@@ -914,8 +936,11 @@ MPI_Barrier(MPI_COMM_WORLD);
 						free(tmp_lnDOS_buf);
 					}
 					
-					//reset for new iteration
-					UWL.doResetForNextIteration();
+					//reset for new iteration - only in standard WL 
+					if(myIngredients.using1tMethod() == false)
+					{
+						UWL.doResetForNextIteration();
+					}
 					
 					{
 						stdoutlog=fopen(stdoutlogname,"a");
@@ -927,6 +952,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 					}
 					
 				}
+				
 					
 					// get the recent modification factor
 					lnf_recent = myIngredients.getModificationFactor(myIngredients);

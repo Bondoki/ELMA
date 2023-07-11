@@ -397,6 +397,7 @@ nsteps(steps)
 	varianceSeries.resize(0);
 	meanSeries.resize(0);
 	flatnessSeries.resize(0);
+	ingredients.setModificationFactorUsing1t(_modificationFactorThesholdUsing1t); // important seq before setModificationFactor in case f(1/t) in the beginnning
 	ingredients.setModificationFactor(ingredients, initialModificationFactor);
 	ingredients.setWindowState(false, ingredients.getVisitsEnergyStates().getMinCoordinate(), ingredients.getVisitsEnergyStates().getMaxCoordinate());
 
@@ -409,7 +410,6 @@ nsteps(steps)
 
 	reachedFinalState = false;
 	
-	ingredients.setModificationFactorUsing1t(_modificationFactorThesholdUsing1t);
 }
  
  
