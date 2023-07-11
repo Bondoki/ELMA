@@ -1028,7 +1028,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 								
 								// NOTE: as a result there are NOW entries for ALL energies (ALSO OUTSIDE THE ENERGY WINDOW)
 								//myIngredients.modifyHGLnDOS().addValue(myIngredients.getHGLnDOS().getCenterOfBin(n), tmp_lnDOS_buf[n]);
-								myIngredients.modifyVisitsEnergyStates().addValue(myIngredients.getVisitsEnergyStates().getCenterOfBin(n), tmp_lnDOS_buf[n]);
+								myIngredients.modifyVisitsEnergyStates().addValue(myIngredients.getVisitsEnergyStates().getCenterOfBin(n), tmp_lnDOS[n]);
 							}
 						}
 						else // send individual lng(E) and receive merged lng(E)
@@ -1120,7 +1120,7 @@ MPI_Barrier(MPI_COMM_WORLD);
 								//if(in.getHGLnDOS().getVectorValues()[n].ReturnN() != 0)
 								
 								// NOTE: as a result there are NOW entries for ALL energies (ALSO OUTSIDE THE ENERGY WINDOW)
-								myIngredients.modifyHGLnDOS().addValue(myIngredients.getHGLnDOS().getCenterOfBin(n), tmp_lnDOS_buf[n]);
+								myIngredients.modifyHGLnDOS().addValue(myIngredients.getHGLnDOS().getCenterOfBin(n), tmp_lnDOS[n]);
 							}
 
 						}
