@@ -70,6 +70,8 @@ int main(int argc, char* argv[])
 		double flatness = 0.85;
 		
 		int numWalkerPerWindow = 2;
+		
+		bool keepDOS = false;
 
 		auto parser
 		= clara::Opt( infile, "input (=input.bfm)" )
@@ -185,6 +187,9 @@ int main(int argc, char* argv[])
 			["--threshold-mod-factor-1t"]
 			("If the threshold is lower than then the modFactorTheshold then standard WL-sampling applies.")
 			.required()
+		| clara::Opt( keepDOS, "keep the inital guess of lnDOS" )
+			["--keepDOS"]
+			("boolean: keep (=1) the inital guess of lnDOS also if desired energy window is reached.")
 		| clara::Help( showHelp );
 
 		auto result = parser.parse( clara::Args( argc, argv ) );
@@ -221,6 +226,7 @@ int main(int argc, char* argv[])
 					<< "filedump:" << filedump << std::endl
 					<< "walker per energy window: " << numWalkerPerWindow << std::endl
 					<< "modFactorThesholdUsing1t: " << modFactorThesholdUsing1t << std::endl
+					<< "keepDOS: " << keepDOS << std::endl
 					;
 		}
 		
@@ -475,7 +481,7 @@ int main(int argc, char* argv[])
 
 		UpdaterAdaptiveWangLandauSamplingNextNeighbor<Ing,MoveLocalSc> UWL(myIngredients,
 						save_interval,
-						bias_update_interval, flatness, modFactor, max_mcs, minWinThread, maxWinThread, tid, modFactorTheshold, modFactorThesholdUsing1t);
+						bias_update_interval, flatness, modFactor, max_mcs, minWinThread, maxWinThread, tid, modFactorTheshold, modFactorThesholdUsing1t, keepDOS);
 
 
 

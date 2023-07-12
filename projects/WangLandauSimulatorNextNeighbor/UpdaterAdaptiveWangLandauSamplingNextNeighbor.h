@@ -97,6 +97,7 @@ public:
 	,int numWindow=0
 	,double _modificationFactorThreshold=std::exp(std::pow(10,-8))
 	,double _modificationFactorThesholdUsing1t=0.0
+	,bool _keepDOS=false
 	);
 	
 	/**
@@ -341,6 +342,8 @@ private:
 	double modificationFactorThreshold;
 	
 	bool reachedFinalState;
+	
+	bool keepLnDOS; // false -> delete initial guess (and already updated LnDOS) if desired window is reached
 };
 
 
@@ -362,7 +365,8 @@ UpdaterAdaptiveWangLandauSamplingNextNeighbor(IngredientsType& ing,
 				double _maxWindow,
 				int numberWindow,
 				double _modificationFactorThreshold,
-				double _modificationFactorThesholdUsing1t
+				double _modificationFactorThesholdUsing1t,
+				bool _keepDOS
 				)
 ://ingredients(ing),
 nsteps(steps)
@@ -387,6 +391,7 @@ nsteps(steps)
 ,simulationConverged(false)
 ,numberIdxWindow(numberWindow)
 ,modificationFactorThreshold(_modificationFactorThreshold)
+,keepLnDOS(_keepDOS)
 ,BaseClass(ing)
 {
 	nStepsBeforeHistogramUpdate=1000;
@@ -443,9 +448,13 @@ bool UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ex
 			counter_nStepsBeforeBiasCheck=0;
 			if(writeHistogramProgress==true)
 				{
+					if(keepLnDOS == false)
+					{
 					shiftHGLnDOS();
-
+					}
+					
 					 dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_tmp_histogram.dat"));
+					 dumpTotalHistogram(std::string(ingredients.getName() + prefixWindow + "_tmp_totalhistogram.dat"));
 					 dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_tmp_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
 					 std::cout << "dump HGLnDOS " << ingredients.getMinWin() << "   " << ingredients.getMaxWin() << std::endl;
 				}
@@ -559,14 +568,28 @@ void UpdaterAdaptiveWangLandauSamplingNextNeighbor<IngredientsType,MoveType>::ch
 				dumpHistogram(std::string(ingredients.getName() + prefixWindow + "_startIteration_histogram.dat"));
 				dumpHGLnDOS(std::string(ingredients.getName() + prefixWindow + "_startIteration_HGLnDOS.dat"), ingredients.getMinWin(), ingredients.getMaxWin());
 
-				// delete all histograms
-
-				ingredients.modifyVisitsEnergyStates().reset(ingredients.getVisitsEnergyStates().getMinCoordinate(),ingredients.getVisitsEnergyStates().getMaxCoordinate(),ingredients.getVisitsEnergyStates().getNBins());
-				ingredients.modifyTotalVisitsEnergyStates().reset(ingredients.getTotalVisitsEnergyStates().getMinCoordinate(),ingredients.getTotalVisitsEnergyStates().getMaxCoordinate(),ingredients.getTotalVisitsEnergyStates().getNBins());
-
-				// rest HGLnDOS to avoid overshoot at boundaries
-				ingredients.modifyHGLnDOS().reset(ingredients.getHGLnDOS().getMinCoordinate(),ingredients.getHGLnDOS().getMaxCoordinate(),ingredients.getHGLnDOS().getNBins());
-
+				if(keepLnDOS == false)
+				{
+					// delete all histograms
+					
+					ingredients.modifyVisitsEnergyStates().reset(ingredients.getVisitsEnergyStates().getMinCoordinate(),ingredients.getVisitsEnergyStates().getMaxCoordinate(),ingredients.getVisitsEnergyStates().getNBins());
+					ingredients.modifyTotalVisitsEnergyStates().reset(ingredients.getTotalVisitsEnergyStates().getMinCoordinate(),ingredients.getTotalVisitsEnergyStates().getMaxCoordinate(),ingredients.getTotalVisitsEnergyStates().getNBins());
+					
+					// rest HGLnDOS to avoid overshoot at boundaries
+					
+					ingredients.modifyHGLnDOS().reset(ingredients.getHGLnDOS().getMinCoordinate(),ingredients.getHGLnDOS().getMaxCoordinate(),ingredients.getHGLnDOS().getNBins());
+				}
+				
+				if(keepLnDOS == true)
+				{
+					std::vector<double> currentHistogram=ingredients.getVisitsEnergyStates().getVectorValues();//.histogram.getVectorValues();
+					std::vector<double> bins=ingredients.getVisitsEnergyStates().getVectorBins();//histogram.getVectorBins();
+					
+					for(size_t n=0;n<currentHistogram.size();n++){
+						if( (ingredients.getVisitsEnergyStates().getCenterOfBin(n) >= ingredients.getMinWin()) && (ingredients.getVisitsEnergyStates().getCenterOfBin(n) <= ingredients.getMaxWin()) )
+							ingredients.modifyVisitsEnergyStates().setVisited(ingredients.getVisitsEnergyStates().getCenterOfBin(n));
+					}
+				}
 			}
 }
 
