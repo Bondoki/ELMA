@@ -536,7 +536,8 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::applyMove(IngredientsType&
 
 	if(windowingState == false)
 	{
-		HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+        // not necessary wor WLBLENDER
+		// HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 		HG_VisitsEnergyStates.addValue(Energy, 1.0);
 		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 		;
@@ -707,7 +708,8 @@ void FeatureWangLandauNextNeighbor<LatticeClassType>::rejectMove(IngredientsType
 
 	if(windowingState == false)
 	{
-			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+            // not necessary wor WLBLENDER
+			// HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
 			HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 		;

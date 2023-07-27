@@ -612,7 +612,8 @@ void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::applyMove(Ingr
 
 	if(windowingState == false)
 	{
-		HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+        // not necessary wor WLBLENDER
+		//HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 		HG_VisitsEnergyStates.addValue(Energy, 1.0);
 		HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 		;
@@ -742,7 +743,8 @@ void FeatureWangLandauExtendedShellInteraction<LatticeClassType>::rejectMove(Ing
 
 	if(windowingState == false)
 	{
-			HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
+            // not necessary wor WLBLENDER
+			//HG_LnDOS.resetValue(Energy, HG_LnDOS.getCountAt(Energy)+std::log(modificationFactor));
 			HG_VisitsEnergyStates.addValue(Energy, 1.0);
 			HG_TotalVisitsEnergyStates.addValue(Energy, 1.0);
 		;
